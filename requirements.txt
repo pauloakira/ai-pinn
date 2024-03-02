@@ -1,0 +1,9 @@
+tensorflow-macos
+tensorflow-metal
+scikit-learn
+matplotlib
+imbalanced-learn
+seaborn
+nltk
+textblob==0.17.1
+gensim
