@@ -13,3 +13,22 @@ Regarding data, the Physical-Informed Neural Networks, can be of two types:
 - **Data-Driven Solutions**: PINNs can be used to find solutions to PDEs when the form of the PDE is known, and the goal is to find the specific solution that fits the data. Example: Solving the Burgers' equation to find the velocity field given initial and boundary conditions.
 
 - **Data-Driven Discovery**: PINNs can also be used to discover the form of the PDE itself from data. This involves learning the parameters of the PDE that best describe the observed data. Example: Discovering the parameters of the Navier-Stokes equations from flow data.
+
+## Data-drive solutions (Continuous time models)
+
+We want to compute solutions of PDEs of the form 
+$$u_t =\mathcal{N}[u] = 0,$$
+$x\in \Omega$, $t\in [0,T]$, where $u(t,x)$ denotes the latent (hidden) solution, $\mathcal{N}[\cdot]$ is a nonlinear differential operator, and $\Omega \subset \mathbb{R}^d$. The latent (hidden) solution is the true underlying function or state of the system that we aim to recover from limited and noisy observations. The term "hidden" emphasizes that we do not have direct access to the complete function over its entire domain. Instead, we have discrete and possibly noisy observations. The task is to reconstruct the continuous function from these observations.
+
+Let's define
+$$f(x,t)=u_t + \mathcal{N}[u],$$
+and proceed by approximating $u(t,x)$ by a deep neural network. This setup results in a physics informed neural network $f(x,t)$. The idea to allocate both the 
+initial and boundary conditions, and to enforce the physical constraints dictated by the partial differential equation, is to divide the loss function $\mathcal{L}$ in two parts: 
+$$ \mathcal{L} = \mathcal{L}_u + \mathcal{L}_f, $$
+where $\mathcal{L}_u$ measures how well the neural network's predictions match the observed data (it is defined over the training data points, which typically include initial and boundary conditions) and $\mathcal{L}_f$ enforces the PDE constraints by measuring the residuals of the PDE at a set of collocation points (he residuals are computed by substituting the neural network's predictions into the PDE). The combined loss ensures that the neural network fits the observed data well and satisfies the physical laws described by the differential equation simuntaneously. It is important to mention that the PDE residuals are evaluated at a set of collocation points, which are selected randomly or using a space-filling design, but these points are not fixed like a grid in classical methods.
+
+Accordingly to the authors:
+
+*...unlike any classical numerical method for solving partial dfferential equations, this prediction is obtained without any sort of discretization of the spatio-temporal domain.*
+
+The neural network provides a smooth and continuous approximation of the solution over the entire domain. Instead of approximating derivatives using differences, PINNs use automatic differentiation to compute the exact derivatives of the neural network’s output with respect to its inputs. Discretization methods face challenges in higher dimensions due to the curse of dimensionality (exponential growth of computational cost with the number of dimensions) but PINNs can handle higher-dimensional problems more gracefully, as the network’s complexity does not scale exponentially with the dimension.
