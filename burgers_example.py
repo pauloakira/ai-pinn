@@ -6,7 +6,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-class MLP(nn.modules):
+# Set the random seed for reproducibility
+np.random.seed(42)
+torch.manual_seed(42)
+
+class MLP(nn.Module):
     def __init__(self, layers):
         super(MLP, self).__init__()
         self.layers = layers
@@ -45,8 +49,31 @@ def physical_loss(model, X_f_train, nu):
     f = u_t + u * u_x - nu * u_xx
     return torch.mean(f**2)
 
-def loss_function(model, X_f_train, u_train, nu):
-    u_pred = model(X_f_train)
+def loss_function(model, X_u_train, u_train, X_f_train, nu):
+    u_pred = model(X_u_train)
     mse_u = data_loss(u_train, u_pred)
     mse_f = physical_loss(model, X_f_train, nu)
     return mse_u + mse_f
+
+def train(model, X_u_train, X_f_train, nu, epochs, learning_rate):
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        loss = loss_function(model, X_f_train, X_u_train, nu)
+        loss.backward()
+        optimizer.step()
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}, Loss: {loss.item()}")
+
+if __name__ == '__main__':
+    # Parameters
+    nu = 0.01 / np.pi
+    layers = [2, 20, 20, 20, 1]
+
+    # Training data
+    N_u = 100
+    N_f = 10000
+
+    # Initial boundary conditions
+    X_u_train = np.random.rand(N_u, 2) # (t,x)
+    u_train = npm
