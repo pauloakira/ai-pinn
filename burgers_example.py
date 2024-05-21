@@ -23,3 +23,30 @@ class MLP(nn.modules):
 def neural_net(layers):
     return MLP(layers)
 
+def data_loss(u_train, u_pred):
+    return torch.mean((u_train - u_pred)**2)
+
+def physical_loss(model, X_f_train, nu):
+    # Enable gradient tracking for X_f_train
+    X_f_train.requires_grad = True
+    # Forward pass
+    u = model(X_f_train)
+    # Compute gradients w.r.t. X_f_train
+    grads = torch.autograd.grad(u, X_f_train, grad_outputs=torch.ones_like(u), create_graph=True)[0]
+    print(f"Grad shape: {grads.shape}")
+    # Extract gradients w.r.t. x and t
+    u_x = grads[:, 1:2]
+    print(f"u_x shape: {u_x.shape}")
+    u_t = grads[:, 0:1]
+    print(f"u_t shape: {u_t.shape}")
+    # Compute the second gradient (second derivative) w.r.t. x
+    u_xx = torch.autograd.grad(u_x, X_f_train, grad_outputs=torch.ones_like(u_x), create_graph=True)[0][:, 1:2]
+    # Compute the residual
+    f = u_t + u * u_x - nu * u_xx
+    return torch.mean(f**2)
+
+def loss_function(model, X_f_train, u_train, nu):
+    u_pred = model(X_f_train)
+    mse_u = data_loss(u_train, u_pred)
+    mse_f = physical_loss(model, X_f_train, nu)
+    return mse_u + mse_f
