@@ -100,3 +100,33 @@ if __name__ == '__main__':
     # Create the model
     model = neural_net(layers)
     train(model, X_u_train, X_f_train, nu, 10000, 0.001)
+
+    # Save the model
+    torch.save(model.state_dict(), 'models/burgers_continuous_model.pth')
+
+    # Generate test data
+    N_test = 1000
+    t_test = np.linspace(0, 1, N_test).reshape(-1, 1)
+    x_test = np.linspace(-1, 1, N_test).reshape(-1, 1)
+    T, X = np.meshgrid(t_test, x_test)
+    X_test = np.hstack((T.flatten()[:, None], X.flatten()[:, None]))
+
+    # Convert to torch tensor
+    X_test = torch.tensor(X_test, dtype=torch.float32)
+
+    # Predict
+    model.eval()
+    with torch.no_grad():
+        u_pred = model(X_test)
+    
+    # Reshape
+    U_pred = griddata(X_test.detach().numpy(), u_pred.flatten().detach().numpy(), (T, X), method='cubic')
+    
+    # Plot the results
+    plt.figure()
+    plt.pcolor(T, X, U_pred, cmap='jet')
+    plt.colorbar()
+    plt.xlabel('t')
+    plt.ylabel('x')
+    plt.title('Predicted solution')
+    plt.show()
