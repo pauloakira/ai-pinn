@@ -53,11 +53,11 @@ $$
     \begin{split}
         &u_t + uu_x - (0.01/\pi)u_{xx} = 0\\
         &u(0,x) = -sin(\pi x), \\
-        &u(t,-1)=u(t,1)=0.
+        &u(t,-1)=u(t,1)=0,
     \end{split}
 \end{equation}
 $$
-Let's define
+with $x\in [-1,1]$ and $t\in [0,1]$. Let's define
 $$
 \begin{equation}
     f(t,x)=u_t + uu_x - (0.01/\pi)u_{xx}.
