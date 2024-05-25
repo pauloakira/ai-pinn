@@ -14,7 +14,9 @@ Regarding data, the Physical-Informed Neural Networks, can be of two types:
 
 - **Data-Driven Discovery**: PINNs can also be used to discover the form of the PDE itself from data. This involves learning the parameters of the PDE that best describe the observed data. Example: Discovering the parameters of the Navier-Stokes equations from flow data.
 
-## Data-drive solutions (Continuous time models)
+## Data-drive solutions
+
+### Continuous time models
 
 We want to compute solutions of PDEs of the form 
 $$
@@ -82,3 +84,29 @@ $$
 \end{equation}
 $$
 Here, $N_u$ refers to the number of data points where we have obervations of the solution $u(t,x)$ (these data points typically include initial and boundary conditions) and $N_f$ refers to the number of collocation points where the differential equation residuals are evaluated (these points are used to enforce the physical constraints dictated by the PDE).
+
+### Discrete time models
+
+Using neural networks alone in discrete time problems may lead to some issues:
+
+1. Traditional PINNs require a large number of collocation points across the entire spatiotemporal domain to enforce the PDE constraints accurately.
+
+2. PINNs can struggle with accurately capturing the temporal evolution of the solution, especially when the temporal gap between data points is large.
+
+3. Ensuring numerical stability and efficiency in solving PDEs with traditional PINNs can be challenging, particularly for stiff equations.
+
+4. Traditional PINNs may require significant computational resources due to the need for a large number of collocation points and the complexity of solving the PDE constraints across the entire domain.
+
+5. In many practical scenarios, data may only be available at discrete and sparse time intervals. Without proper time-stepping methods, the neural network might struggle to interpolate and predict the solution accurately between these intervals.
+
+To solve these issues, the traditional PINNs are applied alongside the classical family of numerical methods, known as Runge-Kutta methods. In this way, each of the issues takes benefit of the methods as following:
+
+1. The Runge-Kutta method can be used to step through time, reducing the need for a dense grid of collocation points. By using discrete time steps, the model can handle sparse data more effectively, ensuring accurate predictions even with limited temporal data.
+
+2. The Runge-Kutta method is known for its accuracy in solving ordinary differential equations (ODEs) through higher-order approximations. By integrating this method, the temporal dynamics of the PDE can be captured more precisely, improving the overall accuracy of the solution.
+
+3. The Runge-Kutta method provides a structured and stable approach to time-stepping, which can help maintain numerical stability. This is especially important for stiff PDEs where explicit methods might struggle without very small time steps.
+
+4. By discretizing the time domain and using the Runge-Kutta method, the number of required collocation points can be reduced. This approach focuses computational efforts on key time steps, potentially lowering the overall computational cost.
+
+5. The Runge-Kutta method can efficiently interpolate the solution at intermediate time steps, ensuring that the network adheres to the PDE constraints even with sparse data.
