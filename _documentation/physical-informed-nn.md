@@ -110,3 +110,19 @@ To solve these issues, the traditional PINNs are applied alongside the classical
 4. By discretizing the time domain and using the Runge-Kutta method, the number of required collocation points can be reduced. This approach focuses computational efforts on key time steps, potentially lowering the overall computational cost.
 
 5. The Runge-Kutta method can efficiently interpolate the solution at intermediate time steps, ensuring that the network adheres to the PDE constraints even with sparse data.
+
+The general form of an explicit $s$-stage Runge-Kutta method for solving an ODE $\frac{du}{dt} = f(t, u)$ is given by:
+$$
+\begin{equation}
+    k_s = f\left(t_n+c_sh, u_n +h \sum \limits^{s-1}_{j=1}a_{sj}k_j \right).
+\end{equation}
+$$
+For exmaple,
+$$
+\begin{equation}
+    \begin{split}
+        k_1 = f(t_n,u_n)\\ \nonumber
+        k_2 = f(t_n+c_2h, u_n+ha_{21}k_1)
+    \end{split}
+\end{equation}
+$$
