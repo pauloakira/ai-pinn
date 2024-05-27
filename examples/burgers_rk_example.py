@@ -94,11 +94,18 @@ X = X.reshape(-1, 1)
 U_pred = net(T, X).detach().numpy()
 U_pred = U_pred.reshape(100, 100)
 
-# Plot the solution
+# Plot the predicted solution
 plt.figure(figsize=(10, 6))
-plt.pcolormesh(t_grid.numpy().squeeze(), x_grid.numpy().squeeze(), U_pred.T, shading='auto', cmap='jet')
-plt.colorbar(label='u(t, x)')
-plt.xlabel('t')
-plt.ylabel('x')
-plt.title('Burgers\' Equation Solution')
+times = [0.0, 0.1, 0.2, 0.5, 1.0]
+for t in times:
+    X_test_t = torch.tensor(np.hstack((t * np.ones((100, 1)), x_grid)), dtype=torch.float32)
+    with torch.no_grad():
+        u_pred_t = net(t * torch.ones(100, 1), x_grid).detach().numpy()
+    plt.plot(x_grid.numpy(), u_pred_t, label=f't={t:.2f}')
+
+plt.xlabel('x', fontsize=14)
+plt.ylabel('u', fontsize=14)
+plt.title('PINN Solution of Burgers\' Equation', fontsize=16)
+plt.legend()
+plt.grid(True)
 plt.show()

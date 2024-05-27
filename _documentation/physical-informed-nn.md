@@ -28,6 +28,7 @@ $x\in \Omega$, $t\in [0,T]$, where $u(t,x)$ denotes the latent (hidden) solution
 
 Let's define
 $$
+
 \begin{equation}
     f(t,x)=u_t + \mathcal{N}[u],
 \end{equation}
@@ -111,18 +112,20 @@ To solve these issues, the traditional PINNs are applied alongside the classical
 
 5. The Runge-Kutta method can efficiently interpolate the solution at intermediate time steps, ensuring that the network adheres to the PDE constraints even with sparse data.
 
-The general form of an explicit $s$-stage Runge-Kutta method for solving an ODE $\frac{du}{dt} = f(t, u)$ is given by:
-$$
-\begin{equation}
-    k_s = f\left(t_n+c_sh, u_n +h \sum \limits^{s-1}_{j=1}a_{sj}k_j \right).
-\end{equation}
-$$
-For exmaple,
+Applying the Runge-Kutta method to $f(t,x)=u_t + \mathcal{N}[u]$, it is possible to write:
 $$
 \begin{equation}
     \begin{split}
-        k_1 = f(t_n,u_n)\\ \nonumber
-        k_2 = f(t_n+c_2h, u_n+ha_{21}k_1)
+        u^{n+c_i} = u^n - h \sum \limits^{q}_{j=1}a_{ij}\mathcal{N}[u^{n+c_j}],\\
+        u^{n+1} = u^n - h \sum \limits^{q}_{j=1} b_j\mathcal{N}[u^{n+c_j}],
     \end{split}
 \end{equation}
 $$
+with $i=1,...,q$ and, where $c_i$ is the intermediate stage and $h=\Delta t$. The first equation refers to the final update of the future time step and, the second equation refers to the intermediate steps. The coefficients $a_{ij}$, $b_j$ and $c_i$ refers to Runge-Kutta coefficients.  It is important to observe that in our case we are just interested in updtaing the temporal variable, keeping the spatial one fixed. Thus, each stage is given by
+$$
+\begin{equation}
+    k_j = \mathcal{N}[u^{n+c_j}]
+\end{equation}
+$$
+
+
