@@ -107,16 +107,16 @@ if __name__ == '__main__':
     E = 1e7
     As = 1
     I = 1/12
-    F = 480
+    F = -4
 
     # Hyperparameters
     lr = 0.01
-    epochs = 1000
+    epochs = 3000
     layers = [1, 50, 50, 50, 1]
 
     # Training data
-    N_u = 100
-    N_f = 10000
+    N_u = 3000
+    N_f = 30000
 
     # Boundary conditions: w(0) = 0, psi(0) = 0
     x_BC_1 = torch.zeros((N_u, 1), dtype=torch.float32, requires_grad=True)
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # Boundary condtions: psi_x(L) = 0, psi_xx(L) = F/(EI)
     x_BC_2 = torch.ones((N_u, 1), dtype=torch.float32) * length
     psi_x_train = torch.zeros((N_u, 1), dtype=torch.float32)
-    psi_xx_train = torch.ones((N_u, 1), dtype=torch.float32) * (-F / (E * I))
+    psi_xx_train = torch.ones((N_u, 1), dtype=torch.float32) * (F / (E * I))
 
     # Collocation points
     X_f_train = torch.rand((N_f, 1), dtype=torch.float32) * length
@@ -142,10 +142,17 @@ if __name__ == '__main__':
     # Train the model
     train(w_model, psi_model, X_f_train, G, E, As, I, lambda x: torch.zeros_like(x), bc, epochs, lr)
 
+    # Save the model
+    torch.save(w_model.state_dict(), 'models/timoshenko_w_model.pth')
+    torch.save(psi_model.state_dict(), 'models/timoshenko_psi_model.pth')
+
     # Generate predictions
     x_test = torch.linspace(0, length, 100).view(-1, 1)
     w_pred = w_model(x_test).detach().numpy()
     psi_pred = psi_model(x_test).detach().numpy()
+
+    print(f"Analytical at x=L: w(L) = {F*length**3/(3*E*I)}, psi(L) = {F*length**2/(3*E*I)}")
+    print(f"Predicted at x=L: w(L) = {w_pred[-1][0]}, psi(L) = {psi_pred[-1][0]}")
 
     # Plot the results
     plt.figure(figsize=(10, 5))
