@@ -120,12 +120,13 @@ if __name__ == '__main__':
 
     # Hyperparameters
     lr = 0.01
-    epochs = 3000
-    layers = [1, 50, 50, 50, 1]
+    epochs = 5000
+    w_layers = [1, 100, 100, 100, 20, 1]
+    psi_layers = [1, 50, 50, 50, 1]
 
     # Training data
-    N_u = 3000
-    N_f = 90000
+    N_u = 10000
+    N_f = 30000
 
     # Boundary conditions: w(0) = 0, psi(0) = 0
     x_BC_1 = torch.zeros((N_u, 1), dtype=torch.float32, requires_grad=True)
@@ -145,8 +146,8 @@ if __name__ == '__main__':
                             x_BC_2=x_BC_2, psi_x_train=psi_x_train, psi_xx_train=psi_xx_train)
 
     # Create the model
-    w_model = w_NN(layers)
-    psi_model = psi_NN(layers)
+    w_model = w_NN(w_layers)
+    psi_model = psi_NN(psi_layers)
     
     # Train the model
     start_time = time.time()
@@ -174,7 +175,6 @@ if __name__ == '__main__':
         "F": F,
         "lr": lr,
         "epochs": epochs,
-        "layers": layers,
         "N_u": N_u,
         "N_f": N_f,
         "w_pred": w_pred[-1][0],
@@ -183,7 +183,9 @@ if __name__ == '__main__':
         "psi_analytical": F*length**2/(3*E*I),
         "w_error": abs(w_pred[-1][0] - F*length**3/(3*E*I))/abs(F*length**3/(3*E*I)),
         "psi_error": abs(psi_pred[-1][0] - F*length**2/(3*E*I))/abs(F*length**2/(3*E*I)),
-        "training_time": execution_time
+        "training_time": execution_time,
+        "w_layers": w_layers,
+        "psi_layers": psi_layers
     }
 
     # Log the results
