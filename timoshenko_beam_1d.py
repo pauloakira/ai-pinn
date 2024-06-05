@@ -1,8 +1,14 @@
+# Python libs
+import time
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 from dataclasses import dataclass
+from datetime import datetime
+
+# Custom libs
+from utils.mlflow_helper import mlflowPipeline
 
 # Set the random seed for reproducibility
 np.random.seed(42)
@@ -101,6 +107,9 @@ def train(w_model, psi_model, X_f_train, G, E, As, I, q, bc: BoundaryConditions,
             print(f"Epoch {epoch}, Loss: {loss.item()}")
 
 if __name__ == '__main__':
+    # Datetime for logging
+    timestamp = int(datetime.now().timestamp())
+
     # Parameters
     length = 100
     G = 5e6
@@ -116,7 +125,7 @@ if __name__ == '__main__':
 
     # Training data
     N_u = 3000
-    N_f = 30000
+    N_f = 90000
 
     # Boundary conditions: w(0) = 0, psi(0) = 0
     x_BC_1 = torch.zeros((N_u, 1), dtype=torch.float32, requires_grad=True)
@@ -140,11 +149,13 @@ if __name__ == '__main__':
     psi_model = psi_NN(layers)
     
     # Train the model
+    start_time = time.time()
     train(w_model, psi_model, X_f_train, G, E, As, I, lambda x: torch.zeros_like(x), bc, epochs, lr)
+    execution_time = time.time() - start_time
 
     # Save the model
-    torch.save(w_model.state_dict(), 'models/timoshenko_w_model.pth')
-    torch.save(psi_model.state_dict(), 'models/timoshenko_psi_model.pth')
+    torch.save(w_model.state_dict(), f'models/timoshenko_w_model_{timestamp}.pth')
+    torch.save(psi_model.state_dict(), f'models/timoshenko_psi_model_{timestamp}.pth')
 
     # Generate predictions
     x_test = torch.linspace(0, length, 100).view(-1, 1)
@@ -154,6 +165,30 @@ if __name__ == '__main__':
     print(f"Analytical at x=L: w(L) = {F*length**3/(3*E*I)}, psi(L) = {F*length**2/(3*E*I)}")
     print(f"Predicted at x=L: w(L) = {w_pred[-1][0]}, psi(L) = {psi_pred[-1][0]}")
 
+    log_object = {
+        "length": length,
+        "G": G,
+        "E": E,
+        "As": As,
+        "I": I,
+        "F": F,
+        "lr": lr,
+        "epochs": epochs,
+        "layers": layers,
+        "N_u": N_u,
+        "N_f": N_f,
+        "w_pred": w_pred[-1][0],
+        "psi_pred": psi_pred[-1][0],
+        "w_analytical": F*length**3/(3*E*I),
+        "psi_analytical": F*length**2/(3*E*I),
+        "w_error": abs(w_pred[-1][0] - F*length**3/(3*E*I))/abs(F*length**3/(3*E*I)),
+        "psi_error": abs(psi_pred[-1][0] - F*length**2/(3*E*I))/abs(F*length**2/(3*E*I)),
+        "training_time": execution_time
+    }
+
+    # Log the results
+    mlflowPipeline("TimoshenkoBeam", f"TimoshenkoBeam_{timestamp}", log_object)
+
     # Plot the results
     plt.figure(figsize=(10, 5))
     plt.plot(x_test.numpy(), w_pred, label='w(x)')
@@ -162,4 +197,6 @@ if __name__ == '__main__':
     plt.ylabel('Function values')
     plt.legend()
     plt.title('Solutions of the differential equations')
-    plt.show()
+    
+    # Save the figure
+    plt.savefig(f'images/timoshenko_beam_{timestamp}.png')
