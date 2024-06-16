@@ -142,7 +142,7 @@ if __name__ == '__main__':
     timestamp = int(datetime.now().timestamp())
 
     # Setup
-    step_lr = True
+    step_lr = False
 
     # Parameters
     length = 100
@@ -154,9 +154,11 @@ if __name__ == '__main__':
 
     # Hyperparameters
     lr = 0.01
-    epochs = 7000
-    w_layers =  [1, 100, 100, 50, 20, 1]
-    psi_layers =  [1, 100, 100, 50, 20, 1]
+    epochs = 10000
+    # w_layers =  [1, 100, 100, 50, 20, 1]
+    # psi_layers =  [1, 100, 100, 50, 20, 1]
+    w_layers =  [1, 256, 128, 128, 64, 64, 32, 16, 8, 1]
+    psi_layers =  [1, 200, 200, 50, 20, 1]
 
     # Training data
     N_u = 25000*1
