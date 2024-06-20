@@ -293,11 +293,13 @@
 #     # Save the figure
 #     plt.savefig(f'images/timoshenko_beam_{timestamp}.png')
 
+# Python libs
 import time
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import List
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -309,7 +311,12 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 # Setting up Metal
-device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+if torch.backends.mps.is_available():
+    device = torch.device('mps')
+elif torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
 print(f"Using device: {device}")
 
 # Defining model objects
@@ -331,7 +338,7 @@ class BoundaryConditions:
     V_train: torch.Tensor
 
 class MLP(nn.Module):
-    def __init__(self, layers):
+    def __init__(self, layers: List[int]):
         super(MLP, self).__init__()
         self.layers = layers
         self.linears = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(len(layers)-1)])
@@ -344,19 +351,19 @@ class MLP(nn.Module):
         z = self.linears[-1](z)
         return z
 
-def w_NN(layers):
+def w_NN(layers)->MLP:
     return MLP(layers).to(device)
 
-def psi_NN(layers):
+def psi_NN(layers)->MLP:
     return MLP(layers).to(device)
 
-def data_loss(bc: BoundaryConditions, w_pred, psi_pred, M_pred, V_pred):
+def data_loss(bc: BoundaryConditions, w_pred, psi_pred, M_pred, V_pred)->tuple:
     return (torch.mean((bc.w_train - w_pred)**2) +
             torch.mean((bc.psi_train - psi_pred)**2) +
             torch.mean((bc.M_train - M_pred)**2) +
             torch.mean((bc.V_train - V_pred)**2))
 
-def physical_loss(w_model, psi_model, X_f_train, G, E, As, I, q):
+def physical_loss(w_model, psi_model, X_f_train, G, E, As, I, q)->torch.Tensor:
     X_f_train.requires_grad = True
     # Models
     w = w_model(X_f_train)
@@ -376,7 +383,7 @@ def physical_loss(w_model, psi_model, X_f_train, G, E, As, I, q):
     f_psi = E*I*psi_xxx - q(X_f_train)
     return torch.mean(f_w**2) + torch.mean(f_psi**2)
 
-def loss_function(w_model, psi_model, X_f_train, G, E, As, I, q, bc: BoundaryConditions):
+def loss_function(w_model, psi_model, X_f_train, G, E, As, I, q, bc: BoundaryConditions)->torch.Tensor:
     # Predict values at initial boundary conditions
     w_pred = w_model(bc.x_BC_1)
     psi_pred = psi_model(bc.x_BC_1)
@@ -439,8 +446,8 @@ if __name__ == '__main__':
     psi_layers =  [1, 200, 200, 50, 20, 1]
 
     # Training data
-    mult_constant = 2
-    N_u = 2500 * mult_constant
+    mult_constant = 3
+    N_u = 4000 * mult_constant
     N_f = 10000 * mult_constant
 
     # Boundary conditions: w(0) = 0, psi(0) = 0
