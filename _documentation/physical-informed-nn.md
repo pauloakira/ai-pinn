@@ -50,7 +50,7 @@ The neural network provides a smooth and continuous approximation of the solutio
 
 ### Example 1 - The Burger's Equation
 
-In one space dimension, the Burger's equation along with tDirichlet boundary condition is given by:
+In one space dimension, the Burger's equation along with Dirichlet boundary condition is given by:
 $$
 \begin{equation}
     \begin{split}
