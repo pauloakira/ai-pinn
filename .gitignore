@@ -1,5 +1,6 @@
 # Cache
 **/__pycache__
+.vscode
 
 # MLflow runs
 mlruns
