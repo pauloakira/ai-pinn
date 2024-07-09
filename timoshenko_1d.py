@@ -1,0 +1,233 @@
+# Python libs
+import time
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import numpy as np
+from typing import List, Tuple
+from dataclasses import dataclass
+from datetime import datetime
+
+# Custom libs
+from domain.models import TimoshenkoBeam, TimoshenkoBoundary
+from utils.mlflow_helper import mlflowPipeline
+
+
+# Set the random seed for reproducibility
+np.random.seed(42)
+torch.manual_seed(42)
+
+# Setting up Metal
+if torch.backends.mps.is_available():
+    device = torch.device('mps')
+elif torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+print(f"Using device: {device}")
+
+class MLP(nn.Module):
+    def __init__(self, layers: List[int]):
+        super(MLP, self).__init__()
+        self.layers = layers
+        self.linears = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(len(layers)-1)])
+        self.output = nn.Linear(layers[-1], 1)
+
+    def forward(self, x):
+        z = x
+        for i in range(len(self.linears)-1):
+            z = torch.tanh(self.linears[i](z))
+        z = self.linears[-1](z)
+        return z
+
+
+def w_NN(layers: List[int]) -> MLP:
+    """
+    Creates and returns a neural network for the deflection (w) field using the provided layer configuration.
+
+    Args:
+        layers (list): A list specifying the number of neurons in each layer of the neural network.
+
+    Returns:
+        MLP: An instance of the MLP class representing the neural network for the deflection field.
+    """
+    return MLP(layers).to(device)
+
+def psi_NN(layers: List[int]) -> MLP:
+    """
+    Creates and returns a neural network for the rotation (psi) field using the provided layer configuration.
+
+    Args:
+        layers (list): A list specifying the number of neurons in each layer of the neural network.
+
+    Returns:
+        MLP: An instance of the MLP class representing the neural network for the rotation field.
+    """
+    return MLP(layers).to(device)
+
+def data_loss(bc: TimoshenkoBoundary, bc_pred: TimoshenkoBoundary)->torch.Tensor:
+    """
+    Computes the data loss for the deflection (w) and rotation (psi) fields.
+
+    Args:
+        bc (TimoshenkoBoundary): An instance of the TimoshenkoBoundary class containing the true boundary conditions.
+        bc_pred (TimoshenkoBoundary): An instance of the TimoshenkoBoundary class containing the predicted boundary conditions.
+
+    Returns:
+        torch.Tensor: The data loss for the deflection and rotation fields.
+    """
+    return torch.mean((bc.w_0 - bc_pred.w_0)**2) + torch.mean((bc.w_L - bc_pred.w_L)**2) + torch.mean((bc.psi_0 - bc_pred.psi_0)**2) + torch.mean((bc.psi_L - bc_pred.psi_L)**2)
+
+def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: TimoshenkoBeam, q: float)->torch.Tensor:
+    """
+    Computes the physical loss for the deflection (w) and rotation (psi) fields.
+
+    Args:
+        w_model (MLP): An instance of the MLP class representing the neural network for the deflection field.
+        psi_model (MLP): An instance of the MLP class representing the neural network for the rotation field.
+        X_f_train (torch.Tensor): The input data for the neural networks.
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
+        q (float): The distributed load acting on the beam.
+
+    Returns:
+        torch.Tensor: The physical loss for the deflection and rotation fields.
+    """
+    X_f_train.requires_grad = True
+    w = w_model(X_f_train)
+    psi = psi_model(X_f_train)
+
+    # Compute the derivatives of w and psi
+    w_grads = torch.autograd.grad(w, X_f_train, grad_outputs=torch.ones_like(w), create_graph=True)[0]
+    w_x = w_grads[:, 0:1]
+    w_x_grads = torch.autograd.grad(w_x, X_f_train, grad_outputs=torch.ones_like(w_x), create_graph=True)[0]
+    w_xx = w_x_grads[:, 0:1]
+
+    psi_grads = torch.autograd.grad(psi, X_f_train, grad_outputs=torch.ones_like(psi), create_graph=True)[0]
+    psi_x = psi_grads[:, 0:1]
+    psi_x_grads = torch.autograd.grad(psi_x, X_f_train, grad_outputs=torch.ones_like(psi_x), create_graph=True)[0]
+    psi_xx = psi_x_grads[:, 0:1]
+
+    # Compute the physical loss
+    f_w = beam.G*beam.As*(w_xx - psi_x) + q(X_f_train)
+    f_psi = beam.E*beam.I*psi_xx + beam.G*beam.As*(w_x - psi)
+
+    return torch.mean(f_w**2) + torch.mean(f_psi**2)
+
+def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred: TimoshenkoBoundary, X_f_train: torch.Tensor, x_0:torch.Tensor, x_L: torch.Tensor, beam: TimoshenkoBeam, q: float)->torch.Tensor:
+    """
+    Computes the total loss function for the deflection (w) and rotation (psi) fields.
+
+    Args:
+        w_model (MLP): An instance of the MLP class representing the neural network for the deflection field.
+        psi_model (MLP): An instance of the MLP class representing the neural network for the rotation field.
+        bc (TimoshenkoBoundary): An instance of the TimoshenkoBoundary class containing the true boundary conditions.
+        bc_pred (TimoshenkoBoundary): An instance of the TimoshenkoBoundary class containing the predicted boundary conditions.
+        X_f_train (torch.Tensor): The input data for the neural networks.
+        x_0 (torch.Tensor): The input data for the neural networks at the left boundary.
+        x_L (torch.Tensor): The input data for the neural networks at the right boundary.
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
+        q (float): The distributed load acting on the beam.
+
+    Returns:
+        torch.Tensor: The total loss function for the deflection and rotation fields.
+    """
+    pass
+
+def analyticSolution(x: float, delta: float, beam: TimoshenkoBeam)->Tuple[float, float]:
+    """
+    Computes the analytical solution for the deflection (w) and rotation (psi) 
+    of a Timoshenko beam at a given position x. The following boundary conditions
+    are assumed: w(0) = delta, w(L) = 0, psi(0) = 0, psi(L) = 0.
+
+    Args:
+        x (float): Position along the beam where the solution is computed.
+        delta (float): Scale factor for the deflection and rotation.
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing 
+                               the properties of the beam.
+
+    Returns:
+        tuple: A tuple containing the deflection (w) and rotation (psi) at position x.
+    """
+    L = beam.length
+    g = 6 * beam.E * beam.I / (beam.G * beam.As * L**2)
+    
+    # Calculate w(x)
+    w = (2 * x**3 / (L**3 * (1 + 2 * g)) - 
+         3 * x**2 / (L**2 * (1 + 2 * g)) - 
+         2 * x * g / (L * (1 + 2 * g)) + 
+         1) * delta
+    
+    # Calculate psi(x)
+    psi = (6 * x**2 / (L**3 * (1 + 2 * g)) - 
+           6 * x / (L**2 * (1 + 2 * g))) * delta
+    
+    return w, psi
+
+def plot_analytical_solution(beam: TimoshenkoBeam, delta: float):
+    """
+    Plots the analytical solution for the deflection (w) and rotation (psi) of a Timoshenko beam.
+
+    Args:
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
+        delta (float): Scale factor for the deflection and rotation.
+    """
+    x_values = np.linspace(0, beam.length, 500)
+    w_values = []
+    psi_values = []
+
+    for x in x_values:
+        w, psi = analyticSolution(x, delta, beam)
+        w_values.append(w)
+        psi_values.append(psi)
+
+    # Plot the analytical solutions
+    plt.figure(figsize=(12, 6))
+
+    # Plot w(x)
+    plt.subplot(1, 2, 1)
+    plt.plot(x_values, w_values, label='w(x)')
+    plt.xlabel('x')
+    plt.ylabel('w(x)')
+    plt.legend()
+    plt.title('Deflection (w)')
+
+    # Plot psi(x)
+    plt.subplot(1, 2, 2)
+    plt.plot(x_values, psi_values, label='ψ(x)', color='orange')
+    plt.xlabel('x')
+    plt.ylabel('ψ(x)')
+    plt.legend()
+    plt.title('Rotation (ψ)')
+
+    plt.tight_layout()
+    plt.show()
+
+def main():
+    # Parameters
+    beam = TimoshenkoBeam(length=100, G=5e6, E=1e7, As=1, I=1/12)
+
+    # Imposed displacement
+    delta = 0.004
+
+    # Hyperparameters
+    lr = 0.01
+    epochs = 15000
+    w_layers =  [1, 20, 20, 20, 20, 1]
+    psi_layers =  [1, 20, 20, 20, 20, 1]
+
+    # Boundary conditions
+    bc = TimoshenkoBoundary(w_0=delta, w_L=0, psi_0=0, psi_L=0)
+
+    # Collocation points
+    N_u = 6000
+    N_f = 10000 
+
+    # Generate data for plotting
+    plot_analytical_solution(beam, delta)
+
+if __name__ == "__main__":
+    main()
+
+
+
+    
