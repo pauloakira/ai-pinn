@@ -78,7 +78,7 @@ def data_loss(bc: TimoshenkoBoundary, bc_pred: TimoshenkoBoundary)->torch.Tensor
     """
     return torch.mean((bc.w_0 - bc_pred.w_0)**2) + torch.mean((bc.w_L - bc_pred.w_L)**2) + torch.mean((bc.psi_0 - bc_pred.psi_0)**2) + torch.mean((bc.psi_L - bc_pred.psi_L)**2)
 
-def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: TimoshenkoBeam, q: float)->torch.Tensor:
+def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: TimoshenkoBeam)->torch.Tensor:
     """
     Computes the physical loss for the deflection (w) and rotation (psi) fields.
 
@@ -108,12 +108,12 @@ def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: T
     psi_xx = psi_x_grads[:, 0:1]
 
     # Compute the physical loss
-    f_w = beam.G*beam.As*(w_xx - psi_x) + q(X_f_train)
+    f_w = beam.G*beam.As*(w_xx - psi_x)
     f_psi = beam.E*beam.I*psi_xx + beam.G*beam.As*(w_x - psi)
 
     return torch.mean(f_w**2) + torch.mean(f_psi**2)
 
-def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred: TimoshenkoBoundary, X_f_train: torch.Tensor, x_0:torch.Tensor, x_L: torch.Tensor, beam: TimoshenkoBeam, q: float)->torch.Tensor:
+def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred: TimoshenkoBoundary, X_f_train: torch.Tensor, x_0:torch.Tensor, x_L: torch.Tensor, beam: TimoshenkoBeam)->torch.Tensor:
     """
     Computes the total loss function for the deflection (w) and rotation (psi) fields.
 
@@ -131,7 +131,49 @@ def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred:
     Returns:
         torch.Tensor: The total loss function for the deflection and rotation fields.
     """
-    pass
+    # Predict values at initial boundary conditions
+    w_0 = w_model(x_0)
+    psi_0 = psi_model(x_0)
+    
+    # Predict values at final boundary conditions
+    w_L = w_model(x_L)
+    psi_L = psi_model(x_L)
+
+    # Compute the boundary conditions
+    bc_pred = TimoshenkoBoundary(w_0=w_0, w_L=w_L, psi_0=psi_0, psi_L=psi_L)
+
+    # Compute the data loss
+    data_loss_val = data_loss(bc, bc_pred)
+
+    # Compute the physical loss
+    physical_loss_val = physical_loss(w_model, psi_model, X_f_train, beam)
+
+    return data_loss_val + physical_loss_val
+
+def train_model(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, x_0: torch.Tensor, x_L: torch.Tensor, beam: TimoshenkoBeam, bc: TimoshenkoBoundary, epochs: int, lr: float)->Tuple[MLP, MLP]:
+
+    # Define the optimizer
+    optimizer = torch.optim.Adam(list(w_model.parameters()) + list(psi_model.parameters()), lr=lr)
+
+    # Training loop
+    for epoch in range(epochs):
+        # Zero gradients
+        optimizer.zero_grad()
+
+        # Compute the loss function
+        loss = loss_function(w_model, psi_model, bc, bc, X_f_train, x_0, x_L, beam)
+
+        # Perform backpropagation
+        loss.backward(retain_graph=True)
+
+        # Update the weights
+        optimizer.step()
+
+        # Print the loss value
+        if epoch % 1000 == 0:
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
+
+    return w_model, psi_model
 
 def analyticSolution(x: float, delta: float, beam: TimoshenkoBeam)->Tuple[float, float]:
     """
@@ -218,9 +260,33 @@ def main():
     # Boundary conditions
     bc = TimoshenkoBoundary(w_0=delta, w_L=0, psi_0=0, psi_L=0)
 
-    # Collocation points
+    # Number of points
     N_u = 6000
     N_f = 10000 
+
+    # Boundary conditions data
+    x_BC_1 = torch.zeros((N_u, 1), device=device, dtype=torch.float32, requires_grad=True)
+    x_BC_2 = torch.ones((N_u, 1), device=device, dtype=torch.float32, requires_grad=True) * beam.length
+
+    # Collocation points
+    X_f_train = torch.rand((N_f, 1), device=device, dtype=torch.float32) * beam.length
+    X_f_train.requires_grad = True
+
+    # Create models
+    w_model = w_NN(w_layers)
+    psi_model = psi_NN(psi_layers)
+
+    # Train the model
+    w_model, psi_model = train_model(w_model=w_model, 
+                                    psi_model=psi_model, 
+                                    X_f_train=X_f_train, 
+                                    x_0=x_BC_1, 
+                                    x_L=x_BC_2, 
+                                    beam=beam,  
+                                    bc=bc, 
+                                    epochs=epochs, 
+                                    lr=lr)
+
 
     # Generate data for plotting
     plot_analytical_solution(beam, delta)
