@@ -87,7 +87,6 @@ def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: T
         psi_model (MLP): An instance of the MLP class representing the neural network for the rotation field.
         X_f_train (torch.Tensor): The input data for the neural networks.
         beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
-        q (float): The distributed load acting on the beam.
 
     Returns:
         torch.Tensor: The physical loss for the deflection and rotation fields.
@@ -126,7 +125,6 @@ def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred:
         x_0 (torch.Tensor): The input data for the neural networks at the left boundary.
         x_L (torch.Tensor): The input data for the neural networks at the right boundary.
         beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
-        q (float): The distributed load acting on the beam.
 
     Returns:
         torch.Tensor: The total loss function for the deflection and rotation fields.
@@ -151,6 +149,27 @@ def loss_function(w_model: MLP, psi_model: MLP, bc: TimoshenkoBoundary, bc_pred:
     return data_loss_val + physical_loss_val
 
 def train_model(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, x_0: torch.Tensor, x_L: torch.Tensor, beam: TimoshenkoBeam, bc: TimoshenkoBoundary, epochs: int, lr: float)->Tuple[MLP, MLP]:
+    """
+    Trains the neural network models for the deflection (w) and rotation (psi) fields of a Timoshenko beam.
+
+    Args:
+        w_model (MLP): The neural network model for the deflection field.
+        psi_model (MLP): The neural network model for the rotation field.
+        X_f_train (torch.Tensor): Training data for the collocation points.
+        x_0 (torch.Tensor): Boundary condition at x = 0.
+        x_L (torch.Tensor): Boundary condition at x = L.
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
+        bc (TimoshenkoBoundary): Boundary conditions for the Timoshenko beam.
+        epochs (int): Number of training epochs.
+        lr (float): Learning rate for the optimizer.
+
+    Returns:
+        Tuple[MLP, MLP]: Trained neural network models for the deflection (w) and rotation (psi) fields.
+    """
+
+    # Loss values and epochs
+    loss_values = []
+    epoch_values = []
 
     # Define the optimizer
     optimizer = torch.optim.Adam(list(w_model.parameters()) + list(psi_model.parameters()), lr=lr)
@@ -172,8 +191,70 @@ def train_model(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, x_0: torc
         # Print the loss value
         if epoch % 1000 == 0:
             print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
+            loss_values.append(loss.item())
+            epoch_values.append(epoch)
+
+    # Plot the loss values
+    plot_loss(loss_values, epoch_values)
 
     return w_model, psi_model
+
+def plot_loss(loss_values: List[float], epoch_values: List[int]):
+    """
+    Plots the loss values during training.
+
+    Args:
+        loss_values (list): A list of loss values.
+        epoch_values (list): A list of epoch values.
+    """
+    plt.figure(figsize=(12, 6))
+    plt.plot(epoch_values, loss_values, label='Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
+def plot_solution(w_model: MLP, psi_model: MLP, beam: TimoshenkoBeam, bc: TimoshenkoBoundary):
+    """
+    Plots the solution for the deflection (w) and rotation (psi) fields of a Timoshenko beam.
+
+    Args:
+        w_model (MLP): The neural network model for the deflection field.
+        psi_model (MLP): The neural network model for the rotation field.
+        beam (TimoshenkoBeam): An instance of the TimoshenkoBeam class containing the properties of the beam.
+        bc (TimoshenkoBoundary): Boundary conditions for the Timoshenko beam.
+    """
+    x_values = np.linspace(0, beam.length, 500)
+    w_values = []
+    psi_values = []
+
+    for x in x_values:
+        w = w_model(torch.tensor([[x]], device=device, dtype=torch.float32)).item()
+        psi = psi_model(torch.tensor([[x]], device=device, dtype=torch.float32)).item()
+        w_values.append(w)
+        psi_values.append(psi)
+
+    # Plot the solution
+    plt.figure(figsize=(12, 6))
+
+    # Plot w(x)
+    plt.subplot(1, 2, 1)
+    plt.plot(x_values, w_values, label='w(x)')
+    plt.xlabel('x')
+    plt.ylabel('w(x)')
+    plt.legend()
+    plt.title('Deflection (w)')
+
+    # Plot psi(x)
+    plt.subplot(1, 2, 2)
+    plt.plot(x_values, psi_values, label='ψ(x)', color='orange')
+    plt.xlabel('x')
+    plt.ylabel('ψ(x)')
+    plt.legend()
+    plt.title('Rotation (ψ)')
+
+    plt.tight_layout()
+    plt.show()
 
 def analyticSolution(x: float, delta: float, beam: TimoshenkoBeam)->Tuple[float, float]:
     """
@@ -246,14 +327,14 @@ def plot_analytical_solution(beam: TimoshenkoBeam, delta: float):
 
 def main():
     # Parameters
-    beam = TimoshenkoBeam(length=100, G=5e6, E=1e7, As=1, I=1/12)
+    beam = TimoshenkoBeam(length=1, G=1, E=1, As=1, I=1)
 
     # Imposed displacement
     delta = 0.004
 
     # Hyperparameters
     lr = 0.01
-    epochs = 15000
+    epochs = 4000
     w_layers =  [1, 20, 20, 20, 20, 1]
     psi_layers =  [1, 20, 20, 20, 20, 1]
 
@@ -287,6 +368,8 @@ def main():
                                     epochs=epochs, 
                                     lr=lr)
 
+    # Plot the solution
+    plot_solution(w_model, psi_model, beam, bc)
 
     # Generate data for plotting
     plot_analytical_solution(beam, delta)
