@@ -172,6 +172,7 @@ def train_model(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, x_0: torc
     epoch_values = []
 
     # Define the optimizer
+    # optimizer = torch.optim.Adam(list(w_model.parameters()) + list(psi_model.parameters()), lr=lr)
     optimizer = torch.optim.Adam(list(w_model.parameters()) + list(psi_model.parameters()), lr=lr)
 
     # Training loop
@@ -334,7 +335,7 @@ def main():
 
     # Hyperparameters
     lr = 0.01
-    epochs = 4000
+    epochs = 7000
     w_layers =  [1, 20, 20, 20, 20, 1]
     psi_layers =  [1, 20, 20, 20, 20, 1]
 
