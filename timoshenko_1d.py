@@ -107,8 +107,9 @@ def physical_loss(w_model: MLP, psi_model: MLP, X_f_train: torch.Tensor, beam: T
     psi_xx = psi_x_grads[:, 0:1]
 
     # Compute the physical loss
-    f_w = beam.G*beam.As*(w_xx - psi_x)
-    f_psi = beam.E*beam.I*psi_xx + beam.G*beam.As*(w_x - psi)
+    # f_w = beam.G*beam.As*(w_xx - psi_x)
+    f_w = w_xx - psi_x
+    f_psi = (beam.E*beam.I)/(beam.G*beam.As)*psi_xx + (w_x - psi)
 
     return torch.mean(f_w**2) + torch.mean(f_psi**2)
 
@@ -328,7 +329,11 @@ def plot_analytical_solution(beam: TimoshenkoBeam, delta: float):
 
 def main():
     # Parameters
-    beam = TimoshenkoBeam(length=1, G=1, E=1, As=1, I=1)
+    G = 5e6
+    E = 10e7
+    I = 1/12
+    As = E*I/G
+    beam = TimoshenkoBeam(length=1, G=G, E=E, As=As, I=I)
 
     # Imposed displacement
     delta = 0.004
