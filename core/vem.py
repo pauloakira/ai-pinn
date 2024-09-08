@@ -192,8 +192,6 @@ def buildLocalBeamK(coord, E, A, I, order):
     c = np.cos(theta)
     s = np.sin(theta)
 
-    print(f"Coords: {coord} - Length: {l}")
-
     if order == 1:
 
         # rotation matrix
