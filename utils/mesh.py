@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def unitary_square_mesh(self, h = 32):
     dh = 1/h
@@ -34,3 +35,59 @@ def unitary_square_mesh(self, h = 32):
         MULTI = MULTI + 1
     
     return nodes, elements
+
+def generate_portic_geometry(num_elements_per_edge, L):
+    """
+    Generate a 2D portic geometry defining nodes, elements and supports.
+
+    Parameters:
+    num_elements_per_edge (int): Number of elements per edge.
+    L (float): length of the each edge.
+
+    Returns:
+    nodes (np.ndarray): Node coordinates (n_nodes x 2)
+    elements (np.ndarray): Element connectivity (n_elements x n_nodes_per_element)  
+    supp (np.ndarray): Support definition (n_supports x 4) with columns [node_id, x_disp, y_disp, rot]
+    """
+    
+    x_coords = np.linspace(0, L, num_elements_per_edge + 1)
+    y_coords = np.linspace(0, L, num_elements_per_edge + 1)
+
+    top_nodes = np.array([[x, L] for x in x_coords if x != 0])
+    left_nodes = np.array([[0, y] for y in y_coords])
+    right_nodes = np.array([[L, y] for y in reversed(y_coords) if y != L])
+
+    nodes = np.vstack([left_nodes, top_nodes, right_nodes])
+
+    elements = np.array([[i, i+1] for i in range(len(nodes)-1)])
+    flatten_elements = elements.flatten()
+
+    supp = np.array([[flatten_elements[0], 1, 1, 1], [flatten_elements[-1], 1, 1, 1]])
+
+    return nodes, elements, supp
+
+def plot_nodes(nodes, elements):
+    """
+    Plot the nodes and elements of a 2D mesh.
+
+    Parameters:
+    nodes (np.ndarray): Node coordinates (n_nodes x 2)
+    elements (np.ndarray): Element connectivity (n_elements x n_nodes_per_element)
+    """
+
+    _, ax = plt.subplots()
+    
+    # Plot nodes
+    ax.plot(nodes[:, 0], nodes[:, 1], 'ro', label='Nodes')
+
+    # Plot elements as lines connecting nodes
+    for element in elements:
+        element_coords = nodes[element]
+        ax.plot(element_coords[:, 0], element_coords[:, 1], 'b-')
+
+    ax.set_aspect('equal')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('Custom Geometry Plot')
+    plt.legend()
+    plt.show()
