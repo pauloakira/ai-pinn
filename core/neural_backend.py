@@ -288,15 +288,18 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, 
     # Calculate the inference time
     inference_time = end_time - start_time
     
-    # Print or use the predicted displacements
-    if verbose:
-        print("Predicted displacements:", predicted_displacements)
-        print("Inference time [s]:", inference_time)
-
     # Compute errors and ensure tensors are on the same device
     l2_error = errors.compute_l2_error(uh_vem, predicted_displacements).item()
     energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
     h1_error = errors.compute_h1_norm(K, uh_vem, predicted_displacements).item()
     
+    # Print or use the predicted displacements
+    if verbose:
+        print("Predicted displacements:", predicted_displacements)
+        print("Inference time [s]:", inference_time)
+        print(f"L2 error: {l2_error}")
+        print(f"Energy error: {energy_error}")
+        print(f"H1 error: {h1_error}")
+
 
     return predicted_displacements, l2_error, energy_error, h1_error, inference_time

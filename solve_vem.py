@@ -1,11 +1,8 @@
+import time
 import numpy as np
 import core.vem as vem
 
-def solve_1d(nodes, elements, supp, E, A, I, load, q, t):
-    # loads
-    # load = np.array([[2,3],[3,4]])
-    # q = -400
-    # t = 0
+def solve_1d(nodes, elements, supp, E, A, I, load, q, t, verbose=True):
     f_dist = vem.buildBeamDistributedLoad(load,t,q,nodes)
 
     # stiffness matrix
@@ -14,11 +11,21 @@ def solve_1d(nodes, elements, supp, E, A, I, load, q, t):
     # apply DBC
     K, f = vem.applyDBCBeam(K, f_dist, supp)
 
-    # solve
-    print()
-    print("######################### Beam ##########################")
-    uh_vem = np.linalg.solve(K,f)
-    print(uh_vem)
-    print("#########################################################")
+    # Start timing the solution
+    start = time.time()
 
-    return uh_vem, K, f
+    # Solve the linear system
+    uh_vem = np.linalg.solve(K,f)
+
+    # End timing the solution
+    end = time.time()
+
+    solving_time = end - start
+
+    if verbose:
+        print(f"Solving time [s]: {solving_time:.4f}")  
+        print("######################### Beam ##########################")
+        print(uh_vem)
+        print("#########################################################")
+
+    return uh_vem, K, f, solving_time
