@@ -1,10 +1,9 @@
-import os
+import time
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
-import core.vem as vem
 from typing import Tuple, List
 
 import core.loss as loss_function
@@ -257,7 +256,7 @@ def train_material_portic(epochs: int,
     return input_vector, model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
 
 
-def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False):
+def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, verbose=True):
     # Set the model to evaluation mode
     model.eval()
 
@@ -271,6 +270,9 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False):
     f = torch.tensor(f, dtype=torch.float32, requires_grad=True)
     uh_vem = torch.tensor(uh_vem, dtype=torch.float32)
 
+    # Start timing the inference
+    start_time = time.time()
+
     # Ensure gradients are not tracked during prediction
     with torch.no_grad():
         # Use the trained model to make predictions
@@ -280,12 +282,21 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False):
         else:
             predicted_displacements = model(nodes, material_params)
 
+    # End timing the inference
+    end_time = time.time()
+
+    # Calculate the inference time
+    inference_time = end_time - start_time
+    
     # Print or use the predicted displacements
-    print("Predicted displacements:", predicted_displacements)
+    if verbose:
+        print("Predicted displacements:", predicted_displacements)
+        print("Inference time [s]:", inference_time)
 
     # Compute errors and ensure tensors are on the same device
     l2_error = errors.compute_l2_error(uh_vem, predicted_displacements).item()
     energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
     h1_error = errors.compute_h1_norm(K, uh_vem, predicted_displacements).item()
+    
 
-    return predicted_displacements, l2_error, energy_error, h1_error
+    return predicted_displacements, l2_error, energy_error, h1_error, inference_time
