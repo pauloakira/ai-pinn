@@ -8,6 +8,7 @@ import core.vem as vem
 from typing import Tuple, List
 
 import core.loss as loss_function
+import core.errors as errors
 
 # Define neural network for the beam problem
 class BeamApproximator(nn.Module):
@@ -36,6 +37,7 @@ class BeamApproximator(nn.Module):
         
         return z
     
+
 class ResidualBeamApproximator(nn.Module):
     def __init__(self, input_dim, layers, ndof):
         super(ResidualBeamApproximator, self).__init__()
@@ -65,7 +67,8 @@ class ResidualBeamApproximator(nn.Module):
         z = self.fout(z)
         
         return z
-    
+
+
 class BeamApproximatorWithMaterials(nn.Module):
     def __init__(self, input_dim_nodes, input_dim_materials, nodes_layers, material_layers, final_layers, ndof):
         super(BeamApproximatorWithMaterials, self).__init__()
@@ -108,7 +111,8 @@ class BeamApproximatorWithMaterials(nn.Module):
         z_combined = self.final_out(z_combined)
         
         return z_combined
-    
+
+
 def normalize_inputs(nodes: torch.Tensor, material_params: torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
     if(isinstance(nodes, np.ndarray)):
         nodes = torch.tensor(nodes, dtype=torch.float32)
@@ -129,6 +133,7 @@ def normalize_inputs(nodes: torch.Tensor, material_params: torch.Tensor)->Tuple[
     normalized_material_params = torch.tensor(normalized_material_params, dtype=torch.float32, requires_grad=True)
 
     return normalized_nodes, normalized_material_params
+
 
 def train_material_portic(epochs: int, 
                    nodes, 
@@ -172,15 +177,15 @@ def train_material_portic(epochs: int,
     # Initialize the model and optimizer
     if network_type == 'residual':
         # layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024]
-        layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048]
+        # layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048]
         # layers = [128, 128, 256, 256, 512, 512, 512, 512]
         # layers = [128, 256, 512]
         concatanate=True
-        model = ResidualBeamApproximator(input_dim, layers, ndof)
+        model = ResidualBeamApproximator(input_dim, nodes_layers, ndof)
     if network_type == 'material':
-        nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
-        material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048] # Layers for materials sub-network
-        final_layers = [1024, 1024, 1024, 1024]  # Layers for final combination network
+        # nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
+        # material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048] # Layers for materials sub-network
+        # final_layers = [1024, 1024, 1024, 1024]  # Layers for final combination network
         # Concatanete the nodes and materials
         concatanate = False
         model = BeamApproximatorWithMaterials(
@@ -250,3 +255,37 @@ def train_material_portic(epochs: int,
         plt.show()
 
     return input_vector, model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
+
+
+def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False):
+    # Set the model to evaluation mode
+    model.eval()
+
+    # Ensure nodes and material_params are torch tensors
+    if isinstance(nodes, np.ndarray):
+        nodes = torch.tensor(nodes, dtype=torch.float32)
+    if isinstance(material_params, np.ndarray):
+        material_params = torch.tensor(material_params, dtype=torch.float32)
+
+    K = torch.tensor(K, dtype=torch.float32, requires_grad=True)
+    f = torch.tensor(f, dtype=torch.float32, requires_grad=True)
+    uh_vem = torch.tensor(uh_vem, dtype=torch.float32)
+
+    # Ensure gradients are not tracked during prediction
+    with torch.no_grad():
+        # Use the trained model to make predictions
+        if concatanate:
+            input_vector = torch.cat((nodes, material_params))
+            predicted_displacements = model(input_vector)
+        else:
+            predicted_displacements = model(nodes, material_params)
+
+    # Print or use the predicted displacements
+    print("Predicted displacements:", predicted_displacements)
+
+    # Compute errors and ensure tensors are on the same device
+    l2_error = errors.compute_l2_error(uh_vem, predicted_displacements).item()
+    energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
+    h1_error = errors.compute_h1_norm(K, uh_vem, predicted_displacements).item()
+
+    return predicted_displacements, l2_error, energy_error, h1_error
