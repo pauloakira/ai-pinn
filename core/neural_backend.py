@@ -5,7 +5,9 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import core.vem as vem
-from typing import Tuple
+from typing import Tuple, List
+
+import core.loss as loss_function
 
 # Define neural network for the beam problem
 class BeamApproximator(nn.Module):
@@ -127,3 +129,124 @@ def normalize_inputs(nodes: torch.Tensor, material_params: torch.Tensor)->Tuple[
     normalized_material_params = torch.tensor(normalized_material_params, dtype=torch.float32, requires_grad=True)
 
     return normalized_nodes, normalized_material_params
+
+def train_material_portic(epochs: int, 
+                   nodes, 
+                   K: np.array, 
+                   f: np.array, 
+                   E: float, 
+                   A: float, 
+                   I: float, 
+                   uh_vem: np.array, 
+                   nodes_layers: List[int],
+                   material_layers: List[int],
+                   final_layers: List[int],
+                   verbose=True, 
+                   noramlize_inputs=False, 
+                   network_type='material'):
+    ndof = 3 * len(nodes)
+    input_dim = 2*len(nodes) + 3
+
+    input_dim_nodes = 2*len(nodes)
+    input_dim_materials = 3
+
+    # Original material parameters
+    material_params_1 = torch.tensor([E, A, I], dtype=torch.float32)
+    print(f"Material params shape: {material_params_1.shape}")
+
+    # Perturbed material parameters (slightly changed)
+    material_params_2 = torch.tensor([E *1.1, A * 1.1, I * 0.9], dtype=torch.float32)
+
+    if noramlize_inputs:
+        nodes, material_params_1 = normalize_inputs(nodes, material_params_1)
+        _, material_params_2 = normalize_inputs(nodes, material_params_2)
+
+    nodes = nodes.flatten()
+    nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
+    print(f"Nodes shape: {nodes.shape}")
+
+    input_vector = torch.cat([nodes, material_params_1])
+
+    lr = 1e-3
+
+    # Initialize the model and optimizer
+    if network_type == 'residual':
+        # layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024]
+        layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048]
+        # layers = [128, 128, 256, 256, 512, 512, 512, 512]
+        # layers = [128, 256, 512]
+        concatanate=True
+        model = ResidualBeamApproximator(input_dim, layers, ndof)
+    if network_type == 'material':
+        nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
+        material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048] # Layers for materials sub-network
+        final_layers = [1024, 1024, 1024, 1024]  # Layers for final combination network
+        # Concatanete the nodes and materials
+        concatanate = False
+        model = BeamApproximatorWithMaterials(
+            input_dim_nodes=input_dim_nodes, 
+            input_dim_materials=input_dim_materials, 
+            nodes_layers=nodes_layers, 
+            material_layers=material_layers, 
+            final_layers=final_layers, 
+            ndof=ndof)
+    else:
+        layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024]
+        # layers = [128, 128, 256, 256, 512, 512, 512, 512]
+        # layers = [128, 256, 512]
+        concatanate=True
+        model = BeamApproximator(input_dim, layers, ndof)
+    # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    # optimizer = optim.Adam(model.parameters(), lr=0.0000000001, weight_decay=1e-4)
+    # optimizer = optim.RMSprop(model.parameters(), lr=0.0000000001)
+
+    K = torch.tensor(K, dtype=torch.float32, requires_grad=True)
+    f = torch.tensor(f, dtype=torch.float32, requires_grad=True)
+
+    total_loss_values = []
+    loss_values = []
+    material_loss_values = []
+    sobolev_loss_values = []
+    alpha_values_values = []
+
+    # Scaling factor for loss
+    # alpha = 1e-17
+
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        # uh = model(input_vector)
+        uh = model(nodes, material_params_1)
+        
+        # Compute the loss
+        loss = loss_function.compute_loss_with_uh(uh_vem, uh)
+        # Compute the sobolev loss
+        sobolev_loss = loss_function.compute_sobolev_loss(model, nodes, material_params_1,loss, concatanate)
+        # Compute material penalty
+        material_penalty = loss_function.compute_material_penalty(model, nodes, material_params_1, material_params_2, concatanate)
+        # Normalize the loss and penalty
+        alpha = loss_function.normalize_loss_and_penalty(loss, material_penalty)
+        total_loss = loss + alpha * material_penalty + sobolev_loss
+        
+        total_loss.backward()
+        
+        optimizer.step()
+        if epoch > 0:
+            total_loss_values.append(total_loss.item())
+            loss_values.append(loss.item())
+            material_loss_values.append(material_penalty.item())
+            sobolev_loss_values.append(sobolev_loss.item())
+            alpha_values_values.append(alpha)
+        
+        if verbose:
+            print(f'Epoch: {epoch + 1}, Total Loss: {total_loss.item()}')
+    
+    if verbose:
+        print("Training complete.")
+        plt.plot(total_loss_values)
+        plt.xlabel('Epochs (Sub-Epochs)')
+        plt.ylabel('Loss')
+        plt.title('Training Loss over Epochs')
+        plt.show()
+
+    return input_vector, model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values

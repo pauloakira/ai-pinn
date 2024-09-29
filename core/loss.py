@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 def compute_loss(K, uh, F):
     """
@@ -20,7 +21,7 @@ def compute_loss(K, uh, F):
     
     return loss
 
-def compute_loss_with_uh(uh_vem, uh):
+def compute_loss_with_uh(uh_vem: np.array, uh: torch.Tensor):
     """
     Compute the loss function as (uh - uh_vem)^2 using PyTorch.
 
