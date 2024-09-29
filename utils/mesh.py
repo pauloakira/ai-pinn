@@ -64,7 +64,14 @@ def generate_portic_geometry(num_elements_per_edge, L):
 
     supp = np.array([[flatten_elements[0], 1, 1, 1], [flatten_elements[-1], 1, 1, 1]])
 
-    return nodes, elements, supp
+    # Find the edges (element connections) along the top
+    load = []
+    top_node_indices = [i for i, node in enumerate(nodes) if node[1] == L]  # Indices of top nodes
+
+    for i, elem in enumerate(elements):
+        if elem[0] in top_node_indices and elem[1] in top_node_indices:
+            load.append(elem)  
+    return nodes, elements, supp, load
 
 def plot_nodes(nodes, elements):
     """
