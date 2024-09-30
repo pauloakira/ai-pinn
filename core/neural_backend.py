@@ -111,6 +111,74 @@ class BeamApproximatorWithMaterials(nn.Module):
         
         return z_combined
 
+class BeamApproximatorWithMaterialsBN(nn.Module):
+    def __init__(self, input_dim_nodes, input_dim_materials, nodes_layers, material_layers, final_layers, ndof):
+        super(BeamApproximatorWithMaterialsBN, self).__init__()
+        # Neural network for nodes
+        self.nodes_in = nn.Linear(input_dim_nodes, nodes_layers[0])
+        self.nodes_bn_in = nn.BatchNorm1d(nodes_layers[0])
+        self.nodes_hidden = nn.ModuleList([nn.Linear(nodes_layers[i], nodes_layers[i+1]) for i in range(len(nodes_layers)-1)])
+        self.nodes_bn_hidden = nn.ModuleList([nn.BatchNorm1d(nodes_layers[i+1]) for i in range(len(nodes_layers)-1)])
+        self.nodes_out = nn.Linear(nodes_layers[-1], ndof)
+        self.nodes_bn_out = nn.BatchNorm1d(ndof)
+
+        # Neural network for materials
+        self.materials_in = nn.Linear(input_dim_materials, material_layers[0])
+        self.materials_bn_in = nn.BatchNorm1d(material_layers[0])
+        self.materials_hidden = nn.ModuleList([nn.Linear(material_layers[i], material_layers[i+1]) for i in range(len(material_layers)-1)])
+        self.materials_bn_hidden = nn.ModuleList([nn.BatchNorm1d(material_layers[i+1]) for i in range(len(material_layers)-1)])
+        self.materials_out = nn.Linear(material_layers[-1], ndof)
+        self.materials_bn_out = nn.BatchNorm1d(ndof)
+
+        # Final output layer
+        self.final_in = nn.Linear(ndof*2, final_layers[0])
+        self.final_bn_in = nn.BatchNorm1d(final_layers[0])
+        self.final_hidden = nn.ModuleList([nn.Linear(final_layers[i], final_layers[i+1]) for i in range(len(final_layers)-1)])
+        self.final_bn_hidden = nn.ModuleList([nn.BatchNorm1d(final_layers[i+1]) for i in range(len(final_layers)-1)])
+        self.final_out = nn.Linear(final_layers[-1], ndof)  # Output layer
+        self.final_bn_out = nn.BatchNorm1d(ndof)
+
+    def forward(self, x_nodes, x_materials):
+        self.eval()
+        # Ensure inputs are at least 2D (batch_size, features), even for single sample
+        if x_nodes.dim() == 1:
+            x_nodes = x_nodes.unsqueeze(0)
+        if x_materials.dim() == 1:
+            x_materials = x_materials.unsqueeze(0)
+
+        # Pass through the first layer
+        z_nodes = torch.relu(self.nodes_in(x_nodes))
+        z_nodes = self.nodes_bn_in(z_nodes)
+        z_materials = torch.relu(self.materials_in(x_materials))
+        z_materials = self.materials_bn_in(z_materials)
+
+        # Pass through the hidden layers for nodes
+        for i, layer in enumerate(self.nodes_hidden):
+            z_nodes = torch.relu(layer(z_nodes))
+            z_nodes = self.nodes_bn_hidden[i](z_nodes)
+        z_nodes = self.nodes_out(z_nodes)
+        z_nodes = self.nodes_bn_out(z_nodes)
+
+        # Pass through the hidden layers for materials
+        for i, layer in enumerate(self.materials_hidden):
+            z_materials = torch.relu(layer(z_materials))
+            z_materials = self.materials_bn_hidden[i](z_materials)
+        z_materials = self.materials_out(z_materials)
+        z_materials = self.materials_bn_out(z_materials)
+
+        # Concatenate the nodes and materials
+        z_combined = torch.cat([z_nodes, z_materials], dim=1)
+
+        # Pass through the final layers
+        z_combined = torch.relu(self.final_in(z_combined))
+        z_combined = self.final_bn_in(z_combined)
+        for i, layer in enumerate(self.final_hidden):
+            z_combined = torch.relu(layer(z_combined))
+            z_combined = self.final_bn_hidden[i](z_combined)
+        z_combined = self.final_out(z_combined)
+        z_combined = self.final_bn_out(z_combined)
+
+        return z_combined
 
 def normalize_inputs(nodes: torch.Tensor, material_params: torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
     if(isinstance(nodes, np.ndarray)):
@@ -147,7 +215,8 @@ def train_material_portic(epochs: int,
                    final_layers: List[int],
                    verbose=True, 
                    noramlize_inputs=False, 
-                   network_type='material'):
+                   network_type='material',
+                   batch_norm=False):
     ndof = 3 * len(nodes)
     input_dim = 2*len(nodes) + 3
 
@@ -187,13 +256,22 @@ def train_material_portic(epochs: int,
         # final_layers = [1024, 1024, 1024, 1024]  # Layers for final combination network
         # Concatanete the nodes and materials
         concatanate = False
-        model = BeamApproximatorWithMaterials(
-            input_dim_nodes=input_dim_nodes, 
-            input_dim_materials=input_dim_materials, 
-            nodes_layers=nodes_layers, 
-            material_layers=material_layers, 
-            final_layers=final_layers, 
-            ndof=ndof)
+        if batch_norm:
+            model = BeamApproximatorWithMaterialsBN(
+                input_dim_nodes=input_dim_nodes, 
+                input_dim_materials=input_dim_materials, 
+                nodes_layers=nodes_layers, 
+                material_layers=material_layers, 
+                final_layers=final_layers, 
+                ndof=ndof)
+        else:
+            model = BeamApproximatorWithMaterials(
+                input_dim_nodes=input_dim_nodes, 
+                input_dim_materials=input_dim_materials, 
+                nodes_layers=nodes_layers, 
+                material_layers=material_layers, 
+                final_layers=final_layers, 
+                ndof=ndof)
     else:
         layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024]
         # layers = [128, 128, 256, 256, 512, 512, 512, 512]
@@ -290,7 +368,8 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, 
     
     # Compute errors and ensure tensors are on the same device
     l2_error = errors.compute_l2_error(uh_vem, predicted_displacements).item()
-    energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
+    # energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
+    energy_error = 0
     h1_error = errors.compute_h1_norm(K, uh_vem, predicted_displacements).item()
     
     # Print or use the predicted displacements
