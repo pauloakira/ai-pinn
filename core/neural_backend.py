@@ -225,7 +225,6 @@ def train_material_portic(epochs: int,
 
     # Original material parameters
     material_params_1 = torch.tensor([E, A, I], dtype=torch.float32)
-    print(f"Material params shape: {material_params_1.shape}")
 
     # Perturbed material parameters (slightly changed)
     material_params_2 = torch.tensor([E *1.1, A * 1.1, I * 0.9], dtype=torch.float32)
