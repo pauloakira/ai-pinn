@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from typing import Tuple, List
 
 def calculate_gradient_norm(model, losses: List[torch.Tensor]):
@@ -56,3 +57,29 @@ def calculate_gradient_norm(model, losses: List[torch.Tensor]):
         model.zero_grad()
 
     return grad_norms
+
+def compute_loss_ratio(current_loss_value: float, initial_loss_value: float):
+    """
+    Compute the loss ratio between the current loss value and the initial loss value.
+
+    Parameters:
+    current_loss_value (float): Current loss value
+    initial_loss_value (float): Initial loss value
+
+    Returns:
+    float: Loss ratio
+    """
+    return current_loss_value / initial_loss_value
+
+def compute__relative_inverse_training_rate(loss_ratios: List[float]):
+    """
+    Calculate the relative inverse training rate for each loss ratio.
+
+    Parameters:
+    loss_ratios (List[float]): List of loss ratios
+
+    Returns:
+    List[float]: Relative inverse training rate for each loss ratio
+    """
+    avg_loss_ratio = np.mean(loss_ratios)
+    return [loss_ratio / avg_loss_ratio for loss_ratio in loss_ratios]
