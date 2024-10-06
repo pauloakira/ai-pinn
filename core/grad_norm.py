@@ -83,7 +83,7 @@ def compute_loss_ratio(current_loss_value: float, initial_loss_value: float)-> f
     Returns:
     float: Loss ratio
     """
-    return current_loss_value / initial_loss_value
+    return current_loss_value / (initial_loss_value)
 
 
 def compute_relative_inverse_training_rate(loss_ratios: List[float])-> List[float]:
