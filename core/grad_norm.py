@@ -72,7 +72,7 @@ def compute_avg_norm(grad_norms: List[float]):
     return np.mean(grad_norms, axis=0)
 
 
-def compute_loss_ratio(current_loss_value: float, initial_loss_value: float):
+def compute_loss_ratio(current_loss_value: float, initial_loss_value: float)-> float:
     """
     Compute the loss ratio between the current loss value and the initial loss value.
 
@@ -86,7 +86,7 @@ def compute_loss_ratio(current_loss_value: float, initial_loss_value: float):
     return current_loss_value / initial_loss_value
 
 
-def compute_relative_inverse_training_rate(loss_ratios: List[float]):
+def compute_relative_inverse_training_rate(loss_ratios: List[float])-> List[float]:
     """
     Calculate the relative inverse training rate for each loss ratio.
 
@@ -98,3 +98,35 @@ def compute_relative_inverse_training_rate(loss_ratios: List[float]):
     """
     avg_loss_ratio = np.mean(loss_ratios)
     return [loss_ratio / avg_loss_ratio for loss_ratio in loss_ratios]
+
+def compute_grad_norm_loss(grad_norms: List[float], loss_ratios: List[float], alpha: float = 0.5)-> torch.Tensor:
+    """
+    Compute the gradient norm loss for each loss function.
+
+    Parameters:
+    grad_norms (List[float]): List of gradient norms for each loss function
+    loss_ratios (List[float]): List of loss ratios
+
+    Returns:
+    List[float]: Gradient norm loss for each loss function
+    """
+    # Setup the number of tasks
+    num_tasks = len(grad_norms)
+
+    # Convert grad_norms to tensors
+    grad_norms = torch.tensor(grad_norms)
+    
+    # Calculate the average gradient norm across all tasks (convert to tensor)
+    avg_grad_norm = torch.tensor(compute_avg_norm(grad_norms.tolist()))
+
+    # Compute the relative inverse training rate for each task
+    ri = compute_relative_inverse_training_rate(loss_ratios)
+
+    loss_grad = torch.tensor(0.0, requires_grad=True)
+
+    for i in range(num_tasks):
+        ri_tensor = torch.tensor(ri[i])
+        loss_task_grad = torch.abs(grad_norms[i] - avg_grad_norm * torch.pow(ri_tensor, alpha))
+        loss_grad = loss_grad + loss_task_grad
+
+    return loss_grad 
