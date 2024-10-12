@@ -521,3 +521,27 @@ def horizontalBarDisc(bar_length, num_elements):
         elements[i,1] = i + 1
 
     return nodes, elements
+
+def generate_beam_parameters(elastic_module_range: list, inertia_moment_range: list, area_range: list,  num_samples: int):
+    ''' Generate random beam parameters for the Euler-Bernoulli beam.
+
+    Input:
+        - elastic_module_range(list): range for the elastic modulus.
+        - inertia_moment_range(list): range for the inertia moment.
+        - area_range(list): range for the area.
+        - length_range(list): range for the length.
+        - num_samples(int): number of samples.
+
+    Output:
+        - param_list(list): list with the beam parameters.
+    '''
+    E = np.random.uniform(elastic_module_range[0], elastic_module_range[1], num_samples)
+    I = np.random.uniform(inertia_moment_range[0], inertia_moment_range[1], num_samples)
+    A = np.random.uniform(area_range[0], area_range[1], num_samples)
+
+    param_list = []
+
+    for i in range(num_samples):
+        param_list.append({'E': E[i], 'I': I[i], 'A': A[i]})
+
+    return param_list
