@@ -33,8 +33,10 @@ def compute_loss_with_uh(uh_vem: np.array, uh: torch.Tensor):
     torch.Tensor: The loss value
     """
     
-    # Detach uh_vem if necessary to avoid tracking gradients
-    uh_vem = torch.tensor(uh_vem, requires_grad=True)
+    if not torch.is_tensor(uh_vem):
+        uh_vem = torch.tensor(uh_vem, dtype=torch, requires_grad=True)
+    # # Detach uh_vem if necessary to avoid tracking gradients
+    # uh_vem = torch.tensor(uh_vem, requires_grad=True)
 
     # Compute the loss (squared residual)
     loss = torch.sum((uh - uh_vem)**2)
