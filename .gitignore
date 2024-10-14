@@ -7,3 +7,6 @@ mlruns
 
 # Images
 *.png
+
+# Models
+data/models/*
