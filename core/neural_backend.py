@@ -338,25 +338,15 @@ def train_material_portic(epochs: int,
 
 
 def train_with_few_materials(epochs: int,
-                             nodes, 
-                    K: np.array, 
-                    f: np.array, 
-                    E: float, 
-                    A: float, 
-                    I: float, 
-                    uh_vem: np.array, 
+                    nodes,
                     nodes_layers: List[int],
                     material_layers: List[int],
                     final_layers: List[int],
-                    verbose=True, 
-                    noramlize_inputs=False, 
-                    network_type='material',
-                    batch_norm=False,
                     device=torch.device('cpu')):
+    
     
     # Setting the number of degrees of freedom
     ndof = 3 * len(nodes)
-    input_dim = 2*len(nodes) + 3
 
     input_dim_nodes = 2*len(nodes)
     input_dim_materials = 3
@@ -414,8 +404,8 @@ def train_with_few_materials(epochs: int,
             uh_vem = torch.tensor(uh_vem, dtype=torch.float32, requires_grad=True).to(device)
             # Compute individual losses
             loss = loss_function.compute_loss_with_uh(uh_vem, uh).to(device)
-            sobolev_loss = loss_function.compute_sobolev_loss(model, nodes, material_params_1, loss, concatenate).to(device)
-            material_penalty = loss_function.compute_material_penalty(model, nodes, material_params_1, material_params_2, concatenate).to(device) * 1e10
+            sobolev_loss = loss_function.compute_sobolev_loss(model, nodes, material_params_1, loss, False).to(device)
+            material_penalty = loss_function.compute_material_penalty(model, nodes, material_params_1, material_params_2, False).to(device) * 1e10
 
             # Weighted sum of losses (with GradNorm weights)
             weighted_losses = [
