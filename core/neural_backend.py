@@ -332,6 +332,29 @@ def train_material_portic(epochs: int,
 
     return input_vector, model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
 
+def train_with_few_materials(epochs: int,
+                             nodes, 
+                    K: np.array, 
+                    f: np.array, 
+                    E: float, 
+                    A: float, 
+                    I: float, 
+                    uh_vem: np.array, 
+                    nodes_layers: List[int],
+                    material_layers: List[int],
+                    final_layers: List[int],
+                    verbose=True, 
+                    noramlize_inputs=False, 
+                    network_type='material',
+                    batch_norm=False):
+    
+    # Setting the number of degrees of freedom
+    ndof = 3 * len(nodes)
+    input_dim = 2*len(nodes) + 3
+
+    input_dim_nodes = 2*len(nodes)
+    input_dim_materials = 3
+
 
 def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, verbose=True):
     # Set the model to evaluation mode
