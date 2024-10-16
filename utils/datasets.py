@@ -73,15 +73,15 @@ def generate_beam_dataset(beam_information: BeamInformation, elastic_module_rang
 
         # Solve the problem using the VEM
         uh_vem, K, f, _ = solve_vem.solve_1d(nodes, 
-                                                elements, 
-                                                supp, 
-                                                E, 
-                                                A, 
-                                                I, 
-                                                load, 
-                                                beam_information.horizontal_load, 
-                                                beam_information.vertical_load, 
-                                                verbose=False)
+                                            elements, 
+                                            supp, 
+                                            E, 
+                                            A, 
+                                            I, 
+                                            load, 
+                                            beam_information.horizontal_load, 
+                                            beam_information.vertical_load, 
+                                            verbose=False)
 
         # Convert nodes to tensor
         nodes = nodes.flatten()

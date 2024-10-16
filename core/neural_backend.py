@@ -6,8 +6,10 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from typing import Tuple, List
 
+import core.grad_norm as gn
 import core.loss as loss_function
 import core.errors as errors
+from utils.datasets import generate_beam_dataset
 
 # Define neural network for the beam problem
 class BeamApproximator(nn.Module):
@@ -111,6 +113,7 @@ class BeamApproximatorWithMaterials(nn.Module):
         
         return z_combined
 
+
 class BeamApproximatorWithMaterialsBN(nn.Module):
     def __init__(self, input_dim_nodes, input_dim_materials, nodes_layers, material_layers, final_layers, ndof):
         super(BeamApproximatorWithMaterialsBN, self).__init__()
@@ -179,6 +182,7 @@ class BeamApproximatorWithMaterialsBN(nn.Module):
         z_combined = self.final_bn_out(z_combined)
 
         return z_combined
+
 
 def normalize_inputs(nodes: torch.Tensor, material_params: torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
     if(isinstance(nodes, np.ndarray)):
@@ -332,6 +336,7 @@ def train_material_portic(epochs: int,
 
     return input_vector, model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
 
+
 def train_with_few_materials(epochs: int,
                              nodes, 
                     K: np.array, 
@@ -346,7 +351,8 @@ def train_with_few_materials(epochs: int,
                     verbose=True, 
                     noramlize_inputs=False, 
                     network_type='material',
-                    batch_norm=False):
+                    batch_norm=False,
+                    device=torch.device('cpu')):
     
     # Setting the number of degrees of freedom
     ndof = 3 * len(nodes)
@@ -354,6 +360,125 @@ def train_with_few_materials(epochs: int,
 
     input_dim_nodes = 2*len(nodes)
     input_dim_materials = 3
+
+    # Initialize loss weights
+    loss_weights = torch.ones(3, requires_grad=True, device=device)  # We have 3 tasks: loss, sobolev_loss, and material_penalty 
+
+    model = BeamApproximatorWithMaterials(
+                input_dim_nodes=input_dim_nodes, 
+                input_dim_materials=input_dim_materials, 
+                nodes_layers=nodes_layers, 
+                material_layers=material_layers, 
+                final_layers=final_layers, 
+                ndof=ndof).to(device)
+
+    # Initialize optimizers (including the loss_weights as parameters)
+    optimizer = torch.optim.Adam(list(model.parameters()) + [loss_weights], lr=1e-3)
+    optimizer_w = torch.optim.SGD([loss_weights], lr=1e-3)
+
+    # Initialize lists to store loss values
+    total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values = [], [], [], [], []
+
+    # Enable anomaly detection for debugging
+    torch.autograd.set_detect_anomaly(True)
+
+    # Different material property configurations (for example, different E, I, A values)
+    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], 100)
+
+    # Loop through epochs (train across all materials in each epoch)
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        print(f"--> Epoch {epoch + 1}")
+        
+        # Loop through each material in the dataset
+        for i, data in enumerate(dataset):
+            
+            # Move material parameters and nodes to the correct device
+            material_params_1 = data['material_params']
+            material_params_2 = data['distorted_material_params']
+            nodes = data['nodes']
+            uh_vem = data['uh_vem']
+
+            # Normalize inputs
+            nodes, material_params_1 = normalize_inputs(nodes, material_params_1)
+            _, material_params_2 = normalize_inputs(nodes, material_params_2)
+
+            material_params_1 = material_params_1.to(device)
+            material_params_2 = material_params_2.to(device)
+
+            nodes = nodes.flatten()
+            nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True).to(device)
+            
+            # Forward pass using the current material parameters
+            uh = model(nodes, material_params_1.to(device))  # Adjust input to include material params
+            uh_vem = torch.tensor(uh_vem, dtype=torch.float32, requires_grad=True).to(device)
+            # Compute individual losses
+            loss = loss_function.compute_loss_with_uh(uh_vem, uh).to(device)
+            sobolev_loss = loss_function.compute_sobolev_loss(model, nodes, material_params_1, loss, concatenate).to(device)
+            material_penalty = loss_function.compute_material_penalty(model, nodes, material_params_1, material_params_2, concatenate).to(device) * 1e10
+
+            # Weighted sum of losses (with GradNorm weights)
+            weighted_losses = [
+                loss_weights[0] * loss, 
+                loss_weights[1] * sobolev_loss, 
+                loss_weights[2] * material_penalty
+            ]
+
+            # Store the initial loss weights
+            if epoch == 0 and i == 0:
+                initial_loss_weights = [
+                    loss_weights[0] * loss, 
+                    loss_weights[1] * sobolev_loss, 
+                    loss_weights[2] * material_penalty
+                ]
+
+            # Calculate the gradient norms for each task
+            grad_norms = gn.calculate_gradient_norm(model, weighted_losses)
+            tilde_losses = [gn.compute_loss_ratio(weighted_losses[i].item(), initial_loss_weights[i].item()) for i in range(len(weighted_losses))]
+
+            # Compute the grad norm loss
+            loss_grad = gn.compute_grad_norm_loss(grad_norms, tilde_losses, alpha=100)
+
+            # Backpropagation of the gradient loss (update the grad_loss weights)
+            loss_grad.backward(retain_graph=True)
+
+            # Step 1: Perform the optimizer step to update the task weights using the gradient loss
+            optimizer_w.step()
+
+            # Step 2: Compute the total loss (sum of the weighted loss)
+            total_loss = loss_weights[0] * loss + loss_weights[1] * sobolev_loss + loss_weights[2] * material_penalty
+
+            # Backpropagation for the model weights using total loss
+            total_loss.backward()
+
+            # Check for abnormally large parameters
+            for param in model.parameters():
+                if param.abs().max() > 1e6:  # Example threshold
+                    print("Parameter value too large, stopping training")
+                    break  # Stop or adjust training
+
+            # Step 3: Perform the optimizer step to update the model weights using the total loss
+            optimizer.step()
+
+            # Step 4: Renormalize the loss weights (no in-place operation)
+            T = len(weighted_losses)
+            sum_w = torch.sum(loss_weights).item()
+
+            # Instead of modifying in-place, re-assign to a new tensor
+            with torch.no_grad():
+                loss_weights.copy_((loss_weights / sum_w) * T)
+
+            # Store losses for analysis
+            if epoch > 0:
+                total_loss_values.append(total_loss.item())
+                loss_values.append(loss_weights[0].item() * loss.item())
+                material_loss_values.append(loss_weights[2].item() * material_penalty.item())
+                sobolev_loss_values.append(loss_weights[1].item() * sobolev_loss.item())
+
+            # Print progress
+            print(f'Material {i+1}: {material_params_1}, Epoch: {epoch + 1}, Total Loss: {total_loss.item()}, Loss Weights: {loss_weights.detach().cpu().numpy()}')
+
+        print("Finished epoch\n")
 
 
 def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, verbose=True):
