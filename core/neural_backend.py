@@ -342,6 +342,8 @@ def train_with_few_materials(epochs: int,
                     nodes_layers: List[int],
                     material_layers: List[int],
                     final_layers: List[int],
+                    save_model: bool = False,
+                    filepath: str = None,
                     device=torch.device('cpu')):
     
     
@@ -469,6 +471,11 @@ def train_with_few_materials(epochs: int,
             print(f'Material {i+1}: {material_params_1}, Epoch: {epoch + 1}, Total Loss: {total_loss.item()}, Loss Weights: {loss_weights.detach().cpu().numpy()}')
 
         print("Finished epoch\n")
+
+    if save_model and filepath is not None:
+        torch.save(model.state_dict(), filepath)
+
+    return model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
 
 
 def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, verbose=True):
