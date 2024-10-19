@@ -6,6 +6,18 @@ After the VM creation, to access it using SSH:
 gcloud compute ssh <your-vm-name> --zone=<your-zone>
 ```
 
+Turn on the VM:
+
+```
+gcloud compute instances start cpu-vm --zone=us-central1-a
+```
+
+Turn off the VM:
+
+```
+gcloud compute instances stop cpu-vm --zone=us-central1-a
+```
+
 ## Docker + VM
 
 Inside the VM, we need to install docker:
