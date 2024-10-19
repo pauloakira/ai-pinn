@@ -20,3 +20,6 @@ gcloud projects add-iam-policy-binding golden-torch-439114-e4 \
 # Authenticate in GCP
 gcloud auth login
 gcloud auth configure-docker
+
+# Access the VM
+gcloud compute ssh $VM_NAME --zone=$ZONE
