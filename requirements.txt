@@ -1,9 +1,2 @@
-tensorflow-macos
-tensorflow-metal
-scikit-learn
+torch==2.2.1
 matplotlib
-imbalanced-learn
-seaborn
-nltk
-textblob==0.17.1
-gensim
