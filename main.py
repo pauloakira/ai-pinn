@@ -28,7 +28,7 @@ t = 0
 nodes, elements, supp, load = mesh.generate_portic_geometry(num_elements_per_edge, L)
 
 # Hyperparameters
-num_epochs = 150
+num_epochs = 40
 concatenate = False
 
 nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
@@ -41,7 +41,8 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
     nodes_layers=nodes_layers,
     material_layers=material_layers,
     final_layers=final_layers,
-    device=device)
+    device=device,
+    number_of_materials=32)
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)

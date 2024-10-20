@@ -344,7 +344,8 @@ def train_with_few_materials(epochs: int,
                     final_layers: List[int],
                     save_model: bool = False,
                     filepath: str = None,
-                    device=torch.device('cpu')):
+                    device=torch.device('cpu'),
+                    number_of_materials: int = 20):
     
     
     # Setting the number of degrees of freedom
@@ -375,7 +376,7 @@ def train_with_few_materials(epochs: int,
     torch.autograd.set_detect_anomaly(True)
 
     # Different material property configurations (for example, different E, I, A values)
-    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], 20)
+    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], number_of_materials)
 
     # Loop through epochs (train across all materials in each epoch)
     for epoch in range(epochs):
