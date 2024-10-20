@@ -375,7 +375,7 @@ def train_with_few_materials(epochs: int,
     torch.autograd.set_detect_anomaly(True)
 
     # Different material property configurations (for example, different E, I, A values)
-    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], 100)
+    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], 20)
 
     # Loop through epochs (train across all materials in each epoch)
     for epoch in range(epochs):

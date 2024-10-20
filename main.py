@@ -10,7 +10,7 @@ from utils.utils import retrieve_device
 device = retrieve_device()
 
 # Define the number of elements per edge
-num_elements_per_edge = 32
+num_elements_per_edge = 64
 
 # geometry data
 L = 2.0
@@ -28,7 +28,7 @@ t = 0
 nodes, elements, supp, load = mesh.generate_portic_geometry(num_elements_per_edge, L)
 
 # Hyperparameters
-num_epochs = 80
+num_epochs = 150
 concatenate = False
 
 nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
@@ -36,7 +36,7 @@ material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 10
 final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
 
 model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values = neural.train_with_few_materials(
-    epochs=40,
+    epochs=num_epochs,
     nodes=nodes,
     nodes_layers=nodes_layers,
     material_layers=material_layers,
@@ -45,4 +45,4 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)
-torch.save(model.state_dict(), "data/models/neural_vem_32.pth")
+torch.save(model.state_dict(), "data/models/neural_vem_64.pth")
