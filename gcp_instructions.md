@@ -44,9 +44,9 @@ docker pull gcr.io/<your-project-id>/<your-image-name>:<tag>
 For example:
 
 ```
-docker pull gcr.io/golden-torch-439114-e4/neural-vem:latest
+sudo docker pull gcr.io/golden-torch-439114-e4/neural-vem:latest
 
-docker run -it --rm \
+sudo docker run -it --rm \
   --name neural-vem-container \
   gcr.io/golden-torch-439114-e4/neural-vem:latest
 ```
