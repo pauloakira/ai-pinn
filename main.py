@@ -10,7 +10,7 @@ from utils.utils import retrieve_device
 device = retrieve_device()
 
 # Define the number of elements per edge
-num_elements_per_edge = 64
+num_elements_per_edge = 8
 
 # geometry data
 L = 2.0
@@ -46,4 +46,4 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)
-torch.save(model.state_dict(), "data/models/neural_vem_64.pth")
+torch.save(model.state_dict(), "data/models/neural_vem_8.pth")
