@@ -116,15 +116,15 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
     @dataclass
     class Supp:
         node: int
-        uBound: float
-        vBound: float
-        rotationBound: float
+        uBound: int
+        vBound: int
+        rotationBound: int
         xCoord: float
         yCood: float
 
     supp_list = []
     for s in supp:
-        supp_list.append(Supp(int(s[0]), float(s[1]), float(s[2]), float(s[3]), float(nodes[s[0]][0]), float(nodes[s[0]][1])).__dict__)
+        supp_list.append(Supp(int(s[0]), int(s[1]), int(s[2]), int(s[3]), float(nodes[s[0]][0]), float(nodes[s[0]][1])).__dict__)
 
     @dataclass
     class Load:
@@ -143,10 +143,12 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
         'nbc': load_list,
     }
 
-    print(load)
-
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=4)
+    try:
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=4)
+        print(f"Geometry data saved to {filename}")
+    except Exception as e:
+        print(f"An error occurred while saving the file: {e}")
 
 
 if __name__ == "__main__":
@@ -158,8 +160,8 @@ if __name__ == "__main__":
     I = 1e-4
     A = 1
 
-    q0x = 1
-    q0y = 0
+    q0x = -400.0
+    q0y = 0.0
 
     # Generate the geometry
     nodes, elements, supp, load = generate_portic_geometry(num_elements_per_edge, L)
