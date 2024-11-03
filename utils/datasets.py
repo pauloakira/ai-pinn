@@ -29,7 +29,7 @@ def z_score_normalize(value, mean_val, std_val):
 
 
 def generate_beam_dataset(elastic_module_range: list, inertia_moment_range: list, area_range: list, num_samples: int,
-                          beam_information: BeamInformation = BeamInformation(8, 2, -400, 0)):
+                          beam_information: BeamInformation = BeamInformation(128, 2, -400, 0)):
     """
     Function to generate a dataset of beam parameters with z-score normalized material properties.
 

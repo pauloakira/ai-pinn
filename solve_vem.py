@@ -7,7 +7,7 @@ def solve_1d(nodes, elements, supp, E, A, I, load, q, t, verbose=True):
     f_dist = vem.buildBeamDistributedLoad(load,t,q,nodes)
 
     # stiffness matrix
-    K = vem.buildGlobaBeamK(nodes, elements, E, A, I, 2)
+    K = vem.buildGlobaBeamK(nodes, elements, E, A, I, 1)
 
     # apply DBC
     K, f = vem.applyDBCBeam(K, f_dist, supp)

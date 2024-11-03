@@ -1,5 +1,8 @@
+import json
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import List
+from dataclasses import dataclass
 
 def unitary_square_mesh(self, h = 32):
     dh = 1/h
@@ -48,6 +51,7 @@ def generate_portic_geometry(num_elements_per_edge, L):
     nodes (np.ndarray): Node coordinates (n_nodes x 2)
     elements (np.ndarray): Element connectivity (n_elements x n_nodes_per_element)  
     supp (np.ndarray): Support definition (n_supports x 4) with columns [node_id, x_disp, y_disp, rot]
+    load (np.ndarray): Load definition (n_loads x 2) with columns [element_id, load_value]
     """
     
     x_coords = np.linspace(0, L, num_elements_per_edge + 1)
@@ -98,3 +102,67 @@ def plot_nodes(nodes, elements):
     ax.set_title('Custom Geometry Plot')
     plt.legend()
     plt.show()
+
+def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
+    """
+    Save the geometry defined by nodes and elements to a JSON file.
+
+    Parameters:
+    nodes (np.ndarray): Node coordinates (n_nodes x 2)
+    elements (np.ndarray): Element connectivity (n_elements x n_nodes_per_element)
+    filename (str): Name of the JSON file to save
+    """
+
+    @dataclass
+    class Supp:
+        node: int
+        uBound: float
+        vBound: float
+        rotationBound: float
+        xCoord: float
+        yCood: float
+
+    supp_list = []
+    for s in supp:
+        supp_list.append(Supp(int(s[0]), float(s[1]), float(s[2]), float(s[3]), float(nodes[s[0]][0]), float(nodes[s[0]][1])).__dict__)
+
+    @dataclass
+    class Load:
+        element: List[int]
+        q0x: float
+        q0y: float
+
+    load_list = []
+    for l in load:
+        load_list.append(Load(l.tolist(), q0x, q0y).__dict__)
+
+    data = {
+        'nodes': nodes.tolist(),
+        'elements': elements.tolist(),
+        'dbc': supp_list,
+        'nbc': load_list,
+    }
+
+    print(load)
+
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=4)
+
+
+if __name__ == "__main__":
+    # Define the number of elements per edge
+    num_elements_per_edge = 8
+
+    # geometry data
+    L = 2.0
+    I = 1e-4
+    A = 1
+
+    q0x = 1
+    q0y = 0
+
+    # Generate the geometry
+    nodes, elements, supp, load = generate_portic_geometry(num_elements_per_edge, L)
+
+    # Save the geometry to a JSON file
+    save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, f'data/geometries/portic_{num_elements_per_edge}.json')
