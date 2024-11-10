@@ -202,17 +202,17 @@
     "dbc": [
         {
             "node": 0,
-            "uBound": 1,
-            "vBound": 1,
-            "rotationBound": 1,
+            "uBound": 1.0,
+            "vBound": 1.0,
+            "rotationBound": 1.0,
             "xCoord": 0.0,
             "yCood": 0.0
         },
         {
             "node": 24,
-            "uBound": 1,
-            "vBound": 1,
-            "rotationBound": 1,
+            "uBound": 1.0,
+            "vBound": 1.0,
+            "rotationBound": 1.0,
             "xCoord": 2.0,
             "yCood": 0.0
         }

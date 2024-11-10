@@ -116,15 +116,15 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
     @dataclass
     class Supp:
         node: int
-        uBound: int
-        vBound: int
-        rotationBound: int
+        uBound: float
+        vBound: float
+        rotationBound: float
         xCoord: float
         yCood: float
 
     supp_list = []
     for s in supp:
-        supp_list.append(Supp(int(s[0]), int(s[1]), int(s[2]), int(s[3]), float(nodes[s[0]][0]), float(nodes[s[0]][1])).__dict__)
+        supp_list.append(Supp(int(s[0]), float(s[1]), float(s[2]), float(s[3]), float(nodes[s[0]][0]), float(nodes[s[0]][1])).__dict__)
 
     @dataclass
     class Load:
@@ -153,7 +153,7 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
 
 if __name__ == "__main__":
     # Define the number of elements per edge
-    num_elements_per_edge = 8
+    num_elements_per_edge = 64
 
     # geometry data
     L = 2.0
