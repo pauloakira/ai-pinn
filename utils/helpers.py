@@ -545,3 +545,26 @@ def generate_beam_parameters(elastic_module_range: list, inertia_moment_range: l
         param_list.append({'E': E[i], 'I': I[i], 'A': A[i]})
 
     return param_list
+
+def read_disp_json(filename):
+    ''' Read json file containing the displacement field.
+
+    Input:
+        - filename(string): name of the file with the respective extension.
+
+    Output:
+        - uh(np.array): horizontal displacement field.
+        - vh(np.array): vertical displacement field.
+    '''
+    # open the json file
+    f = open(filename)
+
+    # return the json data as a dictionary
+    disp = json.load(f)
+
+    # close the json file
+    f.close()
+
+    uh = disp["displacements"]
+
+    return uh
