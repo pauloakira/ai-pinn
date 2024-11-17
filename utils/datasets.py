@@ -1,4 +1,6 @@
+import json
 import torch
+import numpy as np
 from dataclasses import dataclass
 
 import solve_vem
@@ -101,6 +103,66 @@ def generate_beam_dataset(elastic_module_range: list, inertia_moment_range: list
             "distorted_material_params": torch.tensor([z_score_normalize(E * 1.3, E_mean, E_std), 
                                                       z_score_normalize(A * 1.1, A_mean, A_std), 
                                                       z_score_normalize(I * 0.3, I_mean, I_std)], dtype=torch.float32)
+        })
+
+    return dataset
+
+def generate_beam_dataset_from_json(result_filename: str, geometry_filename: str):
+    """
+    Function to generate a dataset of beam parameters with z-score normalized material properties from a JSON file.
+
+    Parameters:
+    result_filename (str): File containing the results of the VEM
+    geometry_filename (str): File containing the geometry of the beam
+
+    Returns:
+    list: List of dictionaries containing the dataset
+    """
+    # Load the results from the JSON file
+    with open(result_filename, 'r') as file:
+        results = json.load(file)
+
+    # Load the geometry from the JSON file
+    with open(geometry_filename, 'r') as file:
+        geometry = json.load(file)
+
+    # Initialize the dataset
+    dataset = []
+
+    # Process nodes
+    nodes = np.array(geometry['nodes'])
+    nodes = nodes.flatten()
+    nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
+
+    E_mean = results['E_mean']
+    E_std = results['E_std']
+    I_mean = results['I_mean']
+    I_std = results['I_std']
+    A_mean = results['A_mean']
+    A_std = results['A_std']
+
+    loaded_dataset = results['dataset']
+
+    for data in loaded_dataset:
+        E, A, I = data['E'], data['A'], data['I']
+
+        # Z-score normalization
+        E_norm = z_score_normalize(E, E_mean, E_std)
+        I_norm = z_score_normalize(I, I_mean, I_std)
+        A_norm = z_score_normalize(A, A_mean, A_std)
+
+        # Z-core normalization for distorted material parameters
+        E_distorted = z_score_normalize(E * 1.3, E_mean, E_std)
+        A_distorted = z_score_normalize(A * 1.1, A_mean, A_std)
+        I_distorted = z_score_normalize(I * 0.3, I_mean, I_std)
+
+        
+
+        dataset.append({
+            "nodes": nodes,
+            "uh_vem": torch.tensor(data['displacements'], dtype=torch.float32),
+            "material_params": torch.tensor([E_norm, A_norm, I_norm], dtype=torch.float32),
+            "distorted_material_params": torch.tensor([E_distorted, A_distorted, I_distorted], dtype=torch.float32),
         })
 
     return dataset

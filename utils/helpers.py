@@ -584,17 +584,45 @@ def consolidate_json_in_dataset(directory_path_name: str):
     '''
     consolidated_data = []
 
+    E_values = []
+    I_values = []
+    A_values = []
+
     for filename in os.listdir(directory_path_name):
         if filename.endswith(".json"):
             uh, E, I, A = read_disp_json(directory_path_name + filename)
+            E_values.append(E)
+            I_values.append(I)
+            A_values.append(A)
             consolidated_data.append({
                 "displacements": uh,
                 "E": E,
                 "I": I,
-                "A": A
+                "A": A,
+                "E_dist": E*1.3,
+                "I_dist": I*0.3,
+                "A_dist": A*1.1 
             })
+
+    E_mean = np.mean(E_values)
+    E_std = np.std(E_values)
+    I_mean = np.mean(I_values)
+    I_std = np.std(I_values)
+    A_mean = np.mean(A_values)
+    A_std = np.std(A_values)
+
+    dataset = {
+        "dataset": consolidated_data,
+        "E_mean": E_mean,
+        "E_std": E_std,
+        "I_mean": I_mean,
+        "I_std": I_std,
+        "A_mean": A_mean,
+        "A_std": A_std
+    }
+            
 
     output_path = "data/consolidated_portic_data.json"
     with open(output_path, "w") as f:
-        json.dump(consolidated_data, f, indent=4)
+        json.dump(dataset, f, indent=4)
     print(f"Data saved in {output_path}")
