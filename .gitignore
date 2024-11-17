@@ -9,4 +9,5 @@ mlruns
 *.png
 
 # Models
+data/datasets/*
 data/models/*

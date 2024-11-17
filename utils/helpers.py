@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import numpy as np
@@ -30,7 +31,7 @@ def calcCentroid(coords):
 
     Input:
         - coords(np.array): coordinates of element nodes.
-
+s
     Output:
         - c(np.array): centroid of a polygon.
     '''
@@ -566,5 +567,34 @@ def read_disp_json(filename):
     f.close()
 
     uh = disp["displacements"]
+    E = disp["material"]["E"]
+    I = disp["material"]["I"]
+    A = disp["material"]["A"]
 
-    return uh
+    return uh, E, I, A
+
+def consolidate_json_in_dataset(directory_path_name: str):
+    ''' Consolidate the json files into a single dataset.
+
+    Input:
+        - directory_path_name(str): path + name of the directory.
+
+    Output:
+        - dataset(dict): dictionary with the consolidated data.
+    '''
+    consolidated_data = []
+
+    for filename in os.listdir(directory_path_name):
+        if filename.endswith(".json"):
+            uh, E, I, A = read_disp_json(directory_path_name + filename)
+            consolidated_data.append({
+                "displacements": uh,
+                "E": E,
+                "I": I,
+                "A": A
+            })
+
+    output_path = "data/consolidated_portic_data.json"
+    with open(output_path, "w") as f:
+        json.dump(consolidated_data, f, indent=4)
+    print(f"Data saved in {output_path}")
