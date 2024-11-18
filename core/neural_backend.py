@@ -9,7 +9,7 @@ from typing import Tuple, List
 import core.grad_norm as gn
 import core.loss as loss_function
 import core.errors as errors
-from utils.datasets import generate_beam_dataset
+from utils.datasets import generate_beam_dataset, generate_beam_dataset_from_json
 
 # Define neural network for the beam problem
 class BeamApproximator(nn.Module):
@@ -345,8 +345,10 @@ def train_with_few_materials(epochs: int,
                     save_model: bool = False,
                     filepath: str = None,
                     device=torch.device('cpu'),
-                    number_of_materials: int = 20):
-    
+                    number_of_materials: int = 20,
+                    from_json: bool = False,
+                    result_filename: str = None,
+                    geometry_filename: str = None):
     
     # Setting the number of degrees of freedom
     ndof = 3 * len(nodes)
@@ -376,7 +378,10 @@ def train_with_few_materials(epochs: int,
     torch.autograd.set_detect_anomaly(True)
 
     # Different material property configurations (for example, different E, I, A values)
-    dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], number_of_materials)
+    if from_json: # Load from JSON file
+        dataset = generate_beam_dataset_from_json(result_filename, geometry_filename)
+    else:
+        dataset = generate_beam_dataset([1e6, 210e9], [1e-6, 1e-3], [1, 10], number_of_materials)
 
     # Loop through epochs (train across all materials in each epoch)
     for epoch in range(epochs):
