@@ -32,7 +32,7 @@ t = 0
 nodes, elements, supp, load = mesh.generate_portic_geometry(num_elements_per_edge, L)
 
 # Hyperparameters
-num_epochs = 30
+num_epochs = 20
 concatenate = False
 
 nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
@@ -47,7 +47,7 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
     final_layers=final_layers,
     device=device,
     number_of_materials=32,
-    from_json=True,
+    from_json=False,
     result_filename=result_filename,
     geometry_filename=geometry_filename,
     )
