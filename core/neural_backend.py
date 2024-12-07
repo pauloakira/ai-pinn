@@ -5,11 +5,17 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from typing import Tuple, List
+from enum import Enum
 
 import core.grad_norm as gn
 import core.loss as loss_function
 import core.errors as errors
 from utils.datasets import generate_beam_dataset, generate_beam_dataset_from_json
+
+# Structural models
+class StructureType(str, Enum):
+    Beam = "beam"
+    Portic = "portic"
 
 # Define neural network for the beam problem
 class BeamApproximator(nn.Module):
@@ -348,10 +354,14 @@ def train_with_few_materials(epochs: int,
                     number_of_materials: int = 20,
                     from_json: bool = False,
                     result_filename: str = None,
-                    geometry_filename: str = None):
+                    geometry_filename: str = None,
+                    type: StructureType = StructureType.Portic):
     
     # Setting the number of degrees of freedom
-    ndof = 3 * len(nodes)
+    if type == StructureType.Portic:
+        ndof = 3 * len(nodes)
+    elif type == StructureType.Beam:
+        ndof = 2 * len(nodes)
 
     input_dim_nodes = 2*len(nodes)
     input_dim_materials = 3

@@ -40,8 +40,8 @@ material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 10
 final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
 
 model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values = neural.train_with_few_materials(
-    epochs=num_epochs,
     nodes=nodes,
+    epochs=num_epochs,
     nodes_layers=nodes_layers,
     material_layers=material_layers,
     final_layers=final_layers,
@@ -50,6 +50,7 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
     from_json=False,
     result_filename=result_filename,
     geometry_filename=geometry_filename,
+    type = neural.StructureType.Portic
     )
 
 # Save the trained model
