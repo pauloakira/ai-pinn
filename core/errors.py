@@ -39,7 +39,7 @@ def compute_energy_error(K, uh_fem, uh_nn):
     energy_error = (U_nn - U_fem) / U_fem
     return energy_error.abs()  # Return the absolute value of the error
 
-def compute_h1_norm(K, uh_fem, uh_nn):
+def compute_h1_norm(uh_fem, uh_nn):
     """
     Compute the H1 norm between the FEM and NN solutions.
     

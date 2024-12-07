@@ -484,7 +484,7 @@ def train_with_few_materials(epochs: int,
     return model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values, alpha_values_values
 
 
-def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, verbose=True):
+def test_portic(nodes, material_params, model, uh_vem, concatanate=False, verbose=True):
     # Set the model to evaluation mode
     model.eval()
 
@@ -494,8 +494,8 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, 
     if isinstance(material_params, np.ndarray):
         material_params = torch.tensor(material_params, dtype=torch.float32)
 
-    K = torch.tensor(K, dtype=torch.float32, requires_grad=True)
-    f = torch.tensor(f, dtype=torch.float32, requires_grad=True)
+    # K = torch.tensor(K, dtype=torch.float32, requires_grad=True)
+    # f = torch.tensor(f, dtype=torch.float32, requires_grad=True)
     uh_vem = torch.tensor(uh_vem, dtype=torch.float32)
 
     # Start timing the inference
@@ -520,7 +520,7 @@ def test_portic(nodes, material_params, model, uh_vem, K, f, concatanate=False, 
     l2_error = errors.compute_l2_error(uh_vem, predicted_displacements).item()
     # energy_error = errors.compute_energy_error(K, uh_vem, predicted_displacements).item()
     energy_error = 0
-    h1_error = errors.compute_h1_norm(K, uh_vem, predicted_displacements).item()
+    h1_error = errors.compute_h1_norm(uh_vem, predicted_displacements).item()
     
     # Print or use the predicted displacements
     if verbose:
