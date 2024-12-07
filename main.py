@@ -13,8 +13,8 @@ device = retrieve_device()
 num_elements_per_edge = 64
 
 # Filename
-result_filename = "data/consolidated_portic_data.json"
-geometry_filename = "data/geometries/portic_64.json"
+result_filename = "data/consolidated_beam_data.json"
+geometry_filename = "data/geometries/beam_64.json"
 
 # geometry data
 L = 2.0
@@ -54,4 +54,4 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)
-torch.save(model.state_dict(), "data/models/neural_vem_64_2nd_order.pth")
+torch.save(model.state_dict(), "data/models/neural_vem_beam_64.pth")

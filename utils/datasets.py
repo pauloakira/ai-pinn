@@ -27,7 +27,9 @@ def z_score_normalize(value, mean_val, std_val):
     float: Normalized value
 
     """
-    return (value - mean_val) / std_val
+    if std_val !=0:
+        return (value - mean_val) / std_val
+    return 0.0
 
 
 def generate_beam_dataset(elastic_module_range: list, inertia_moment_range: list, area_range: list, num_samples: int,

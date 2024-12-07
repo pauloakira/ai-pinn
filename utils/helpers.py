@@ -573,7 +573,7 @@ def read_disp_json(filename):
 
     return uh, E, I, A
 
-def consolidate_json_in_dataset(directory_path_name: str):
+def consolidate_json_in_dataset(directory_path_name: str, output_file_name: str = "consolidated_portic_data.json"):
     ''' Consolidate the json files into a single dataset.
 
     Input:
@@ -622,7 +622,7 @@ def consolidate_json_in_dataset(directory_path_name: str):
     }
             
 
-    output_path = "data/consolidated_portic_data.json"
+    output_path = "data/"+output_file_name
     with open(output_path, "w") as f:
         json.dump(dataset, f, indent=4)
     print(f"Data saved in {output_path}")
