@@ -2,6 +2,7 @@ import os
 import torch
 import core.grad_norm as gn
 import core.neural_backend as neural
+from utils.datasets import generate_beam_dataset_from_json
 from utils.helpers import generate_beam_parameters
 import utils.mesh as mesh
 from utils.utils import retrieve_device
@@ -29,10 +30,13 @@ q = -400
 t = 0
 
 # Generate the geometry
-nodes, elements, supp, load = mesh.generate_portic_geometry(num_elements_per_edge, L)
+# nodes, elements, supp, load = mesh.generate_portic_geometry(num_elements_per_edge, L)
+dataset = generate_beam_dataset_from_json(result_filename=result_filename, geometry_filename=geometry_filename)
+nodes = dataset[0]['nodes']
+
 
 # Hyperparameters
-num_epochs = 20
+num_epochs = 80
 concatenate = False
 
 nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
@@ -47,10 +51,10 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
     final_layers=final_layers,
     device=device,
     number_of_materials=32,
-    from_json=False,
+    from_json=True,
     result_filename=result_filename,
     geometry_filename=geometry_filename,
-    type = neural.StructureType.Portic
+    type = neural.StructureType.Beam
     )
 
 # Save the trained model

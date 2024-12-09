@@ -133,8 +133,8 @@ def generate_beam_dataset_from_json(result_filename: str, geometry_filename: str
 
     # Process nodes
     nodes = np.array(geometry['nodes'])
-    nodes = nodes.flatten()
-    nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
+    # nodes = nodes.flatten()
+    # nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
 
     E_mean = results['E_mean']
     E_std = results['E_std']

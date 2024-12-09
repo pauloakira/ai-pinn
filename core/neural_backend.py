@@ -376,6 +376,9 @@ def train_with_few_materials(epochs: int,
                 material_layers=material_layers, 
                 final_layers=final_layers, 
                 ndof=ndof).to(device)
+    
+    print(f"input_dim_nodes :: {input_dim_nodes}")
+    print(f"input_dim_materials :: {input_dim_materials}")
 
     # Initialize optimizers (including the loss_weights as parameters)
     optimizer = torch.optim.Adam(list(model.parameters()) + [loss_weights], lr=1e-3)
