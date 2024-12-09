@@ -115,60 +115,57 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
     input_dim_nodes = 2*len(nodes)
     input_dim_materials = 3
 
-    # Material parameters
-    E = loaded_dataset[0]['E']
-    A = loaded_dataset[0]['A']
-    I = loaded_dataset[0]['I']
-    E_dist = loaded_dataset[0]['E_dist']
-    A_dist = loaded_dataset[0]['A_dist']
-    I_dist = loaded_dataset[0]['I_dist']
+    for data in loaded_dataset:
 
-    # Cast to tensor
-    material_params_1 = torch.tensor([E, A, I], dtype=torch.float32)
-    material_params_2 = torch.tensor([E_dist, A_dist, I_dist], dtype=torch.float32)
+        # Material parameters
+        E = data['E']
+        A = data['A']
+        I = data['I']
 
-    # Normalizing
-    nodes, material_params_1 = neural.normalize_inputs(nodes, material_params_1)
-    _, material_params_2 = neural.normalize_inputs(nodes, material_params_2) 
+        # Cast to tensor
+        material_params = torch.tensor([E, A, I], dtype=torch.float32)
 
-    # Casting nodes
-    nodes = nodes.flatten()
-    nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
+        # Normalizing
+        nodes, material_params = neural.normalize_inputs(nodes, material_params)
 
-    # Setting the VEM solution
-    uh_vem = np.array(loaded_dataset[0]['displacements'])
+        # Casting nodes
+        nodes = nodes.flatten()
+        nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
 
-    # Layers definition
-    nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
-    material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048, 4096, 4096, 2048, 2048, 1024, 1024, 1024, 1024, 512, 512] # Layers for materials sub-network
-    final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
+        # Setting the VEM solution
+        uh_vem = np.array(data['displacements'])
+
+        # Layers definition
+        nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
+        material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048, 4096, 4096, 2048, 2048, 1024, 1024, 1024, 1024, 512, 512] # Layers for materials sub-network
+        final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
 
 
-    # Create a new instance of the model (with the same architecture)
-    loaded_model = neural.BeamApproximatorWithMaterials(
-        input_dim_nodes=input_dim_nodes, 
-        input_dim_materials=input_dim_materials, 
-        nodes_layers=nodes_layers, 
-        material_layers=material_layers, 
-        final_layers=final_layers, 
-        ndof=ndof
-    )
+        # Create a new instance of the model (with the same architecture)
+        loaded_model = neural.BeamApproximatorWithMaterials(
+            input_dim_nodes=input_dim_nodes, 
+            input_dim_materials=input_dim_materials, 
+            nodes_layers=nodes_layers, 
+            material_layers=material_layers, 
+            final_layers=final_layers, 
+            ndof=ndof
+        )
 
-    # Load the saved model state
-    loaded_model.load_state_dict(torch.load("data/models/neural_vem_64.pth"))
+        # Load the saved model state
+        loaded_model.load_state_dict(torch.load("data/models/neural_vem_64.pth"))
 
-    # Set the model to evaluation mode (important for inference)
-    loaded_model.eval()
+        # Set the model to evaluation mode (important for inference)
+        loaded_model.eval()
 
-    # Test the model using the new material parameters
-    predicted_displacements, l2_error, energy_error, h1_error, inference_time = neural.test_portic(
-        nodes=nodes,
-        material_params=material_params_1,
-        model=loaded_model,  # Use the loaded model for inference
-        uh_vem=uh_vem,
-        concatanate=False,
-        verbose=True
-    )
+        # Test the model using the new material parameters
+        predicted_displacements, l2_error, energy_error, h1_error, inference_time = neural.test_portic(
+            nodes=nodes,
+            material_params=material_params,
+            model=loaded_model,  # Use the loaded model for inference
+            uh_vem=uh_vem,
+            concatanate=False,
+            verbose=True
+        )
 
 
 if __name__ == "__main__":
