@@ -89,16 +89,6 @@ def run_test(model_path: str, consolidated_file_path: str, geometry_file_path: s
         print(h1_error)
 
 def test(consolidated_file_path: str, geometry_file_path: str,):
-
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("MPS backend is available!")
-    else:
-        device = torch.device("cpu")
-    print("MPS backend is not available. Using CPU.")
-
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
     # Load test dataset
     with open(consolidated_file_path, 'r') as file:
         dataset = json.load(file)
@@ -114,6 +104,30 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
     ndof = 3 * len(nodes)
     input_dim_nodes = 2*len(nodes)
     input_dim_materials = 3
+
+    # H1 values
+    h1_values = []
+
+    # Layers definition
+    nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
+    material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048, 4096, 4096, 2048, 2048, 1024, 1024, 1024, 1024, 512, 512] # Layers for materials sub-network
+    final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
+
+    # Create a new instance of the model (with the same architecture)
+    loaded_model = neural.BeamApproximatorWithMaterials(
+        input_dim_nodes=input_dim_nodes, 
+        input_dim_materials=input_dim_materials, 
+        nodes_layers=nodes_layers, 
+        material_layers=material_layers, 
+        final_layers=final_layers, 
+        ndof=ndof
+    )
+
+    # Load the saved model state
+    loaded_model.load_state_dict(torch.load("data/models/neural_vem_64.pth"))
+
+    # Set the model to evaluation mode (important for inference)
+    loaded_model.eval()
 
     for data in loaded_dataset:
 
@@ -133,29 +147,7 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
         nodes = torch.tensor(nodes, dtype=torch.float32, requires_grad=True)
 
         # Setting the VEM solution
-        uh_vem = np.array(data['displacements'])
-
-        # Layers definition
-        nodes_layers = [128, 256, 512, 512, 512, 512]  # Layers for nodes sub-network
-        material_layers = [128, 128, 256, 256, 512, 512, 512, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 2048, 2048, 4096, 4096, 2048, 2048, 1024, 1024, 1024, 1024, 512, 512] # Layers for materials sub-network
-        final_layers = [1024, 1024, 1024, 1024, 1024, 1024] # Layers for final combination network
-
-
-        # Create a new instance of the model (with the same architecture)
-        loaded_model = neural.BeamApproximatorWithMaterials(
-            input_dim_nodes=input_dim_nodes, 
-            input_dim_materials=input_dim_materials, 
-            nodes_layers=nodes_layers, 
-            material_layers=material_layers, 
-            final_layers=final_layers, 
-            ndof=ndof
-        )
-
-        # Load the saved model state
-        loaded_model.load_state_dict(torch.load("data/models/neural_vem_64.pth"))
-
-        # Set the model to evaluation mode (important for inference)
-        loaded_model.eval()
+        uh_vem = np.array(data['displacements'])        
 
         # Test the model using the new material parameters
         predicted_displacements, l2_error, energy_error, h1_error, inference_time = neural.test_portic(
@@ -167,6 +159,16 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
             verbose=True
         )
 
+        h1_values.append(h1_error)
+
+    h1_values = np.array(h1_values)
+    mean = np.mean(h1_values)
+    std = np.std(h1_values)
+
+    print("----------------------------------------")
+    print(f"Mean :: {mean}")
+    print(f"Std :: {std}")
+    print("----------------------------------------")
 
 if __name__ == "__main__":
 
