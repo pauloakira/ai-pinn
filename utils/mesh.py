@@ -153,7 +153,7 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
 
 if __name__ == "__main__":
     # Define the number of elements per edge
-    num_elements_per_edge = 64
+    num_elements_per_edge = 128
 
     # geometry data
     L = 2.0

@@ -3,7 +3,7 @@ import torch
 import core.grad_norm as gn
 import core.neural_backend as neural
 from utils.datasets import generate_beam_dataset_from_json
-from utils.helpers import generate_beam_parameters
+from utils.helpers import generate_beam_parameters, consolidate_json_in_dataset
 import utils.mesh as mesh
 from utils.utils import retrieve_device
 
@@ -11,11 +11,14 @@ from utils.utils import retrieve_device
 device = retrieve_device()
 
 # Define the number of elements per edge
-num_elements_per_edge = 64
+num_elements_per_edge = 8
+
+directory_path_name = f"data/datasets/portic/data_{num_elements_per_edge}/"
+consolidate_json_in_dataset(directory_path_name, f"consolidated_portic_data_{num_elements_per_edge}.json")
 
 # Filename
-result_filename = "data/consolidated_beam_data.json"
-geometry_filename = "data/geometries/beam_64.json"
+result_filename = f"data/consolidated_portic_data_{num_elements_per_edge}.json"
+geometry_filename = f"data/geometries/portic_{num_elements_per_edge}.json"
 
 # geometry data
 L = 2.0
@@ -54,9 +57,9 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
     from_json=True,
     result_filename=result_filename,
     geometry_filename=geometry_filename,
-    type = neural.StructureType.Beam
+    type = neural.StructureType.Portic
     )
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)
-torch.save(model.state_dict(), "data/models/neural_vem_beam_64.pth")
+torch.save(model.state_dict(), f"data/models/neural_vem_{num_elements_per_edge}.pth")

@@ -4,6 +4,7 @@ import torch
 import numpy as np
 
 import core.neural_backend as neural
+from utils.helpers import consolidate_json_in_dataset
 
 def load_model(model_path: str, ndof: int, input_dim_nodes: int, input_dim_materials: int):
     # Layers definition
@@ -124,7 +125,7 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
     )
 
     # Load the saved model state
-    loaded_model.load_state_dict(torch.load("data/models/neural_vem_64.pth"))
+    loaded_model.load_state_dict(torch.load("data/models/neural_vem_8.pth"))
 
     # Set the model to evaluation mode (important for inference)
     loaded_model.eval()
@@ -170,23 +171,32 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
     print(f"Std :: {std}")
     print("----------------------------------------")
 
+def generate_test_dataset(num_elements_per_edge: int):
+    directory_path_name = f"data/datasets/portic_test/data_{num_elements_per_edge}/"
+    consolidate_json_in_dataset(directory_path_name, f"consolidated_portic_test_data_{num_elements_per_edge}.json")
+
+
 if __name__ == "__main__":
 
     type = "portic"
+    num_elements_per_edge = 8
 
     # Paths for beam 
-    file_path = "data/consolidated_beam_test_data.json"
-    geometry_path = "data/geometries/beam_64.json"
-    model_path = "data/models/neural_vem_beam_64.pth"
+    # file_path = "data/consolidated_beam_test_data.json"
+    # geometry_path = "data/geometries/beam_64.json"
+    # model_path = "data/models/neural_vem_beam_64.pth"
+
+    generate_test_dataset(num_elements_per_edge=num_elements_per_edge)
 
     # Paths for portic
-    file_path = "data/consolidated_portic_test_data.json"
-    geometry_path = "data/geometries/portic_64.json"
-    model_path = "data/models/neural_vem_64.pth" 
+    file_path = f"data/consolidated_portic_test_data_{num_elements_per_edge}.json"
+    geometry_path = f"data/geometries/portic_{num_elements_per_edge}.json"
+    model_path = f"data/models/neural_vem_{num_elements_per_edge}.pth" 
 
     # Run test pipeline
     # run_test(model_path=model_path,
     #    consolidated_file_path=file_path,
     #    geometry_file_path=geometry_path,
     #    type=type)
+    # generate_test_dataset(num_elements_per_edge=128)
     test(consolidated_file_path=file_path, geometry_file_path=geometry_path)
