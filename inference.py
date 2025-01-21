@@ -89,7 +89,7 @@ def run_test(model_path: str, consolidated_file_path: str, geometry_file_path: s
 
         print(h1_error)
 
-def test(consolidated_file_path: str, geometry_file_path: str,):
+def test(num_elements_per_edge: int, consolidated_file_path: str, geometry_file_path: str,):
     # Load test dataset
     with open(consolidated_file_path, 'r') as file:
         dataset = json.load(file)
@@ -125,7 +125,7 @@ def test(consolidated_file_path: str, geometry_file_path: str,):
     )
 
     # Load the saved model state
-    loaded_model.load_state_dict(torch.load("data/models/neural_vem_8.pth"))
+    loaded_model.load_state_dict(torch.load(f"data/models/neural_vem_{num_elements_per_edge}.pth"))
 
     # Set the model to evaluation mode (important for inference)
     loaded_model.eval()
@@ -179,7 +179,7 @@ def generate_test_dataset(num_elements_per_edge: int):
 if __name__ == "__main__":
 
     type = "portic"
-    num_elements_per_edge = 8
+    num_elements_per_edge = 16
 
     # Paths for beam 
     # file_path = "data/consolidated_beam_test_data.json"
@@ -199,4 +199,8 @@ if __name__ == "__main__":
     #    geometry_file_path=geometry_path,
     #    type=type)
     # generate_test_dataset(num_elements_per_edge=128)
-    test(consolidated_file_path=file_path, geometry_file_path=geometry_path)
+    test(
+        num_elements_per_edge=num_elements_per_edge, 
+        consolidated_file_path=file_path, 
+        geometry_file_path=geometry_path
+    )

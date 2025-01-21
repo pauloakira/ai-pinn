@@ -11,13 +11,13 @@ from utils.utils import retrieve_device
 device = retrieve_device()
 
 # Define the number of elements per edge
-num_elements_per_edge = 8
+num_elements_per_edge = 128
 
-directory_path_name = f"data/datasets/portic/data_{num_elements_per_edge}/"
-consolidate_json_in_dataset(directory_path_name, f"consolidated_portic_data_{num_elements_per_edge}.json")
+directory_path_name = f"data/datasets/portic/data_{num_elements_per_edge}_order_5/"
+consolidate_json_in_dataset(directory_path_name, f"consolidated_portic_data_{num_elements_per_edge}_order_5.json")
 
 # Filename
-result_filename = f"data/consolidated_portic_data_{num_elements_per_edge}.json"
+result_filename = f"data/consolidated_portic_data_{num_elements_per_edge}_order_5.json"
 geometry_filename = f"data/geometries/portic_{num_elements_per_edge}.json"
 
 # geometry data
@@ -62,4 +62,4 @@ model, total_loss_values, loss_values, material_loss_values, sobolev_loss_values
 
 # Save the trained model
 os.makedirs("data/models", exist_ok=True)
-torch.save(model.state_dict(), f"data/models/neural_vem_{num_elements_per_edge}.pth")
+torch.save(model.state_dict(), f"data/models/neural_vem_{num_elements_per_edge}_order_5.pth")
