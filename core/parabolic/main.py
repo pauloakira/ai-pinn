@@ -90,7 +90,10 @@ class Preprocessing:
             )
 
     def define_polynomial_basis(self):
-        """ Define the polynomial basis for P_k(K)
+        """ Define the polynomial basis for P_k(K).
+        For k=1, basis is {1, x, y}
+        For k=2, basis is {1, x, y, x², xy, y²}
+        For k=3, basis is {1, x, y, x², xy, y², x³, x²y, xy², y³}
 
         Parameters:
             None
@@ -100,7 +103,7 @@ class Preprocessing:
         """
         # For k=1, basis is {1, x, y}
         def basis_functions(x, y, xc, yc, h):
-            """Return values of basis functions at (x,y)
+            """Return values of basis functions at (x,y).
 
             Parameters:
                 x (float): x-coordinate
@@ -179,8 +182,15 @@ class Preprocessing:
             normals.append(normal)
         return np.array(edges), np.array(normals)
     
-    def get_boundary_nodes(self):
-        """Find boundary nodes where Dirichlet BCs will be applied."""
+    def get_boundary_nodes(self)->np.ndarray:
+        """Find boundary nodes where Dirichlet BCs will be applied.
+        
+        Parameters:
+            None
+
+        Returns:
+            boundary_nodes (np.array): Array of boundary nodes
+        """
         boundary_nodes = []
         for i, (x, y) in enumerate(self.vertices):
             if np.isclose(x, 0) or np.isclose(x, 1) or np.isclose(y, 0) or np.isclose(y, 1):
@@ -189,11 +199,20 @@ class Preprocessing:
     
 
 class LocalMatrices:
-    def __init__(self, preprocessing: Preprocessing):
+    def __init__(self, preprocessing: Preprocessing, use_weighted_proj: bool = False):
         self.pre = preprocessing
+        self.use_weighted_proj = use_weighted_proj
 
-    def compute_polynomial_matrices(self, el_idx)->Tuple[np.ndarray, np.ndarray]:
-        """2.1.1 Compute the polynomial matrices A^K and M^K"""
+    def compute_polynomial_matrices(self, el_idx: int)->Tuple[np.ndarray, np.ndarray]:
+        """Compute the polynomial matrices A^K and M^K.
+        
+        Parameters:
+            el_idx (int): Index of the element
+
+        Returns:
+            A_poly (np.array): Polynomial stiffness matrix
+            M_poly (np.array): Polynomial mass matrix
+        """
         geom = self.pre.geom_info[el_idx]
         area = geom.area
         xc, yc = geom.barycenter
@@ -203,13 +222,19 @@ class LocalMatrices:
         n_basis = self.pre.poly_basis['size']
         basis_funcs = self.pre.poly_basis['functions']
         gradients = self.pre.poly_basis['gradients'](xc, yc, xc, yc, h)  # Evaluate at barycenter
+
+        # Setup weighted projection
+        if self.use_weighted_proj:
+            w_k = 1/h
+        else:
+            w_k = 1
         
         # Compute polynomial mass matrix M^K with proper scaling
         M_poly = np.zeros((n_basis, n_basis))
         for i in range(n_basis):
             for j in range(n_basis):
                 # Integral of basis function products over element
-                M_poly[i, j] = self._integrate_basis_product(basis_funcs, i, j, xc, yc, h)
+                M_poly[i, j] = w_k * self._integrate_basis_product(basis_funcs, i, j, xc, yc, h)
         
         # Compute polynomial stiffness matrix A^K with correct scaling
         A_poly = np.zeros((n_basis, n_basis))
@@ -252,8 +277,16 @@ class LocalMatrices:
         
         return B
     
-    def compute_stability_matrix(self, el_idx):
-        """2.1.2 Compute the stability matrix S^K"""
+    def compute_stability_matrix(self, el_idx)->Tuple[np.ndarray, np.ndarray]:
+        """Compute the stability matrix S^K.
+        
+        Parameters:
+            el_idx (int): Index of the element
+
+        Returns:
+            S_A (np.array): Stabilization matrix for A
+            S_M (np.array): Stabilization matrix for M
+        """
         geom = self.pre.geom_info[el_idx]
         n_vertices = len(geom.vertices)
         area = geom.area
@@ -262,7 +295,7 @@ class LocalMatrices:
         return (0.01 * area / n_vertices) * np.eye(n_vertices), (0.01 * area / n_vertices) * np.eye(n_vertices)
     
     def compute_element_matrices(self, el_idx, alpha: float = 0.01, beta: float = 0.01)->Tuple[np.ndarray, np.ndarray]:
-        """Compute final local matrices
+        """Compute final local matrices.
         
         Parameters:
             el_idx (int): Index of the element
@@ -316,21 +349,24 @@ class LocalMatrices:
     
             
 class VEMParabolic:
-    def __init__(self, vertices: np.ndarray, elements: np.ndarray, k: int = 1):
+    def __init__(self, vertices: np.ndarray, elements: np.ndarray, k: int = 1, use_weighted_proj: bool = False):
         # Initialize preprocessing
         self.pre = Preprocessing(vertices, elements, k)
         self.pre.compute_geometric_info()
         self.pre.define_polynomial_basis()
+
+        # Setup weighted projection
+        self.use_weighted_proj = use_weighted_proj
         
         # Initialize local matrices computer
-        self.local_matrices = LocalMatrices(self.pre)
+        self.local_matrices = LocalMatrices(self.pre, self.use_weighted_proj)
         
         # Global matrices
         self.M = None
         self.A = None
 
     def assemble_global_matrices(self):
-        """Assemble Global Matrices
+        """Assemble the global matrices M and A.
         
         Parameters:
             None
@@ -360,7 +396,17 @@ class VEMParabolic:
         self.A = A.tocsr()
 
     def solve_backward_euler(self, T: float, nt: int, u0: np.ndarray, f: Callable[[float, float, float], float]) -> np.ndarray:
-        """Time Discretization using Backward Euler with VEM-consistent source term"""
+        """Time Discretization using Backward Euler with VEM-consistent source term.
+        
+        Parameters:
+            T (float): Final time
+            nt (int): Number of time steps
+            u0 (np.array): Initial condition
+            f (Callable[[float, float, float], float]): Source term
+
+        Returns:
+            U (np.array): Solution array
+        """
         if self.M is None or self.A is None:
             self.assemble_global_matrices()
         
@@ -400,11 +446,18 @@ class VEMParabolic:
                 area = geom.area
                 B, M_poly = projection_matrices[el_idx]
                 
+                # Setup weighted projection
+                if self.use_weighted_proj:
+                    h = np.sqrt(area)
+                    w_k = 1/h
+                else:
+                    w_k = 1
+
                 # Project f onto P_k(K)
                 f_proj_coeffs = np.zeros(self.pre.poly_basis['size'])
                 for p_idx in range(self.pre.poly_basis['size']):
                     xc, yc = geom.barycenter
-                    f_proj_coeffs[p_idx] = f(t, xc, yc) * area
+                    f_proj_coeffs[p_idx] = w_k * f(t, xc, yc) * area
                 
                 f_local = B.T @ np.linalg.solve(M_poly, f_proj_coeffs)
                 b[dofs] += dt * f_local
@@ -421,8 +474,18 @@ class VEMParabolic:
         return U
 
 
-    def solve_crank_nicolson(self, T: float, nt: int, u0: np.ndarray, f: Callable) -> np.ndarray:
-        """Time Discretization using Crank-Nicolson"""
+    def solve_crank_nicolson(self, T: float, nt: int, u0: np.ndarray, f: Callable[[float, float, float], float]) -> np.ndarray:
+        """Time Discretization using Crank-Nicolson.
+        
+        Parameters:
+            T (float): Final time
+            nt (int): Number of time steps
+            u0 (np.array): Initial condition
+            f (Callable[[float, float, float], float]): Source term
+
+        Returns:
+            U (np.array): Solution array
+        """
         if self.M is None or self.A is None:
             self.assemble_global_matrices()
         
@@ -462,12 +525,19 @@ class VEMParabolic:
                 dofs = self.pre.elements[el_idx]
                 area = geom.area
                 B, M_poly = projection_matrices[el_idx]
+
+                # Setup weighted projection
+                if self.use_weighted_proj:
+                    h = np.sqrt(area)
+                    w_k = 1/h
+                else:
+                    w_k = 1
                 
                 # Evaluate source at midpoint t_{n+1/2}
                 t_mid = t_n + 0.5 * dt
                 xc, yc = geom.barycenter
-                f_mid = f(t_mid, xc, yc)
-                
+                f_mid = w_k * f(t_mid, xc, yc)
+
                 # Project and integrate
                 f_proj_coeffs = np.array([f_mid * area, 0.0, 0.0])  # For k=1
                 f_local = B.T @ np.linalg.solve(M_poly, f_proj_coeffs)
@@ -484,8 +554,17 @@ class VEMParabolic:
     
 
 # Add the error function
-def compute_error(vem, u_h, u_exact):
-    """Compute ||u_h - u_exact||_M / ||u_exact||_M as in paper"""
+def compute_error(vem, u_h, u_exact)->float:
+    """Compute ||u_h - u_exact||_M / ||u_exact||_M error.
+    
+    Parameters:
+        vem (VEMParabolic): VEM solver
+        u_h (np.array): Approximated solution
+        u_exact (np.array): Exact solution
+
+    Returns:
+        error (float): Error
+    """
     e = u_h - u_exact
     norm_e = np.sqrt(e @ vem.M @ e)
     norm_u = np.sqrt(u_exact @ vem.M @ u_exact)
@@ -493,11 +572,15 @@ def compute_error(vem, u_h, u_exact):
 
 # Modified run_solver()
 def run_solver():
-    num_elements_per_edge = 16
+    # num_elements_per_edge = 16
+    num_elements_per_edge = 32
     vertices, elements = generate_uniform_mesh(num_elements_per_edge)
 
+    # Use weighted projection
+    use_weighted_proj = True    
+
     # Initialize solver
-    vem = VEMParabolic(vertices, elements)
+    vem = VEMParabolic(vertices, elements, use_weighted_proj=use_weighted_proj)
     vem.assemble_global_matrices()  # Assemble M and A
     
     # Initial condition: u(0,x,y) = sin(πx)sin(πy)
@@ -511,7 +594,8 @@ def run_solver():
     
     # Solve
     T = 1.0
-    nt = 1655
+    nt = 150
+    # nt = 1655
     # U = vem.solve_backward_euler(T, nt, u0, f)
     U = vem.solve_crank_nicolson(T, nt, u0, f)
     
@@ -527,7 +611,17 @@ def run_solver():
     return U, vertices, elements, u_exact
 
 def plot_solution(U, vertices, elements, time_idx=-1):
-    """Visualize the solution"""
+    """Visualize the solution
+    
+    Parameters:
+        U (np.array): Solution array
+        vertices (np.array): Array of vertices
+        elements (np.array): Array of elements
+        time_idx (int): Index of the time step to plot
+
+    Returns:
+        None
+    """
     import matplotlib.tri as tri
     
     # Create triangulation
