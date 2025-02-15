@@ -420,6 +420,67 @@ class VEMParabolic:
         
         return U
 
+
+    def solve_crank_nicolson(self, T: float, nt: int, u0: np.ndarray, f: Callable) -> np.ndarray:
+        """Time Discretization using Crank-Nicolson"""
+        if self.M is None or self.A is None:
+            self.assemble_global_matrices()
+        
+        dt = T / nt
+        n = len(self.pre.vertices)
+        U = np.zeros((nt + 1, n))
+        U[0] = u0
+        
+        # Precompute projection matrices and system matrices
+        projection_matrices = []
+        for el_idx in range(len(self.pre.elements)):
+            geom = self.pre.geom_info[el_idx]
+            B = self.local_matrices.compute_transformation_matrix(el_idx)
+            M_poly = self.local_matrices.compute_polynomial_matrices(el_idx)[1]
+            projection_matrices.append((B, M_poly))
+        
+        # Precompute boundary nodes and system matrix
+        boundary_nodes = self.pre.get_boundary_nodes()
+        system_matrix = 0.5 * self.A + self.M / dt
+        system_matrix = system_matrix.tolil()
+        for i in boundary_nodes:
+            system_matrix[i, :] = 0.0
+            system_matrix[i, i] = 1.0
+        system_matrix = system_matrix.tocsr()
+        
+        # Time stepping
+        for i in range(nt):
+            t_n = i * dt
+            t_np1 = (i + 1) * dt
+            
+            # Compute source terms at t_n and t_{n+1/2}
+            b = (self.M / dt - 0.5 * self.A) @ U[i]
+            
+            # Add source term contribution (midpoint rule)
+            for el_idx in range(len(self.pre.elements)):
+                geom = self.pre.geom_info[el_idx]
+                dofs = self.pre.elements[el_idx]
+                area = geom.area
+                B, M_poly = projection_matrices[el_idx]
+                
+                # Evaluate source at midpoint t_{n+1/2}
+                t_mid = t_n + 0.5 * dt
+                xc, yc = geom.barycenter
+                f_mid = f(t_mid, xc, yc)
+                
+                # Project and integrate
+                f_proj_coeffs = np.array([f_mid * area, 0.0, 0.0])  # For k=1
+                f_local = B.T @ np.linalg.solve(M_poly, f_proj_coeffs)
+                b[dofs] += dt * f_local  # Integrate over [t_n, t_{n+1}]
+            
+            # Apply boundary conditions to RHS
+            b[boundary_nodes] = 0.0  # Enforce u=0 on boundary
+            
+            # Solve
+            U[i + 1] = spsolve(system_matrix, b)
+            U[i + 1, boundary_nodes] = 0.0  # Ensure exact BCs
+        
+        return U
     
 
 # Add the error function
@@ -450,8 +511,9 @@ def run_solver():
     
     # Solve
     T = 1.0
-    nt = 2000
-    U = vem.solve_backward_euler(T, nt, u0, f)
+    nt = 1655
+    # U = vem.solve_backward_euler(T, nt, u0, f)
+    U = vem.solve_crank_nicolson(T, nt, u0, f)
     
     # Compute exact solution for comparison
     u_exact = np.zeros(len(vertices))
