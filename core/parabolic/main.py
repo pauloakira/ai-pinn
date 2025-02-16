@@ -6,6 +6,7 @@ from scipy.sparse.linalg import spsolve
 from scipy.sparse import lil_matrix, csr_matrix
 from pydantic import BaseModel
 
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
@@ -240,7 +241,7 @@ class LocalMatrices:
         A_poly = np.zeros((n_basis, n_basis))
         for i in range(1, n_basis):  # Skip the first row/column (constant function)
             for j in range(1, n_basis):
-                A_poly[i, j] = 0.00000001*area *np.dot(gradients[i], gradients[j])  # Correct scaling
+                A_poly[i, j] = area *np.dot(gradients[i], gradients[j])  # Correct scaling
 
         
         return A_poly, M_poly
@@ -264,6 +265,8 @@ class LocalMatrices:
         n_vertices = len(vertices)
         n_basis = self.pre.poly_basis['size']
         B = np.zeros((n_basis, n_vertices))  # Note: transposed from before
+
+        w_k = 1/h if self.use_weighted_proj else 1
         
         # Evaluate basis functions at vertices with proper scaling
         for i, vertex in enumerate(vertices):
@@ -271,9 +274,9 @@ class LocalMatrices:
             x_scaled = (vertex[0] - xc)
             y_scaled = (vertex[1] - yc)
             
-            B[:,i] = [1.0,            # constant term
-                     x_scaled,       # x term
-                     y_scaled]       # y term
+            B[:,i] = [w_k*1.0,            # constant term
+                     w_k*x_scaled,       # x term
+                     w_k*y_scaled]       # y term
         
         return B
     
@@ -573,11 +576,11 @@ def compute_error(vem, u_h, u_exact)->float:
 # Modified run_solver()
 def run_solver():
     # num_elements_per_edge = 16
-    num_elements_per_edge = 32
+    num_elements_per_edge = 4
     vertices, elements = generate_uniform_mesh(num_elements_per_edge)
 
     # Use weighted projection
-    use_weighted_proj = True    
+    use_weighted_proj = True   
 
     # Initialize solver
     vem = VEMParabolic(vertices, elements, use_weighted_proj=use_weighted_proj)
@@ -594,7 +597,7 @@ def run_solver():
     
     # Solve
     T = 1.0
-    nt = 150
+    nt = 5
     # nt = 1655
     # U = vem.solve_backward_euler(T, nt, u0, f)
     U = vem.solve_crank_nicolson(T, nt, u0, f)
@@ -641,7 +644,7 @@ def plot_solution(U, vertices, elements, time_idx=-1):
 
 if __name__ == "__main__":
     U, vertices, elements, u_exact = run_solver()
-    plot_solution(U, vertices, elements)
+    # plot_solution(U, vertices, elements)
 
     error = np.linalg.norm(U[-1] - u_exact) / np.linalg.norm(u_exact)
     print(f"Relative L2 error at  {error}")

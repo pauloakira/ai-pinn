@@ -1,8 +1,9 @@
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import List
+from typing import List, Tuple
 from dataclasses import dataclass
+from scipy.spatial import Voronoi, voronoi_plot_2d
 
 def unitary_square_mesh(self, h = 32):
     dh = 1/h
@@ -149,7 +150,6 @@ def save_geometry_to_json(nodes, elements, supp, load, q0x, q0y, filename):
         print(f"Geometry data saved to {filename}")
     except Exception as e:
         print(f"An error occurred while saving the file: {e}")
-
 
 if __name__ == "__main__":
     # Define the number of elements per edge
